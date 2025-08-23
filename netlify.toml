@@ -1,7 +1,10 @@
 [build]
+  command = "npm run build"
   publish = "."
 
-# Redirect all routes to index.html (SPA fallback)
+[functions]
+  directory = "netlify/functions"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
