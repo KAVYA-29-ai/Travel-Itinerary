@@ -1,0 +1,19 @@
+{
+  "name": "travel-planner-pro",
+  "version": "1.0.0",
+  "description": "AI-powered travel itinerary planner with Mapbox integration",
+  "main": "index.html",
+  "scripts": {
+    "build": "echo 'Build complete'",
+    "dev": "netlify dev"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.2.1"
+  },
+  "devDependencies": {
+    "netlify-cli": "^12.0.0"
+  },
+  "keywords": ["travel", "ai", "itinerary", "mapbox", "google-ai"],
+  "author": "Travel Planner Team",
+  "license": "MIT"
+}
