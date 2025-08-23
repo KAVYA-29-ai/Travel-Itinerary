@@ -1,107 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>AI Travel Itinerary — Netlify · Gemini · Google Maps</title>
-  <meta name="description" content="Generate beautiful travel itineraries with pins on Google Maps using Google AI Studio (Gemini). Pure frontend — Netlify ready." />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Travel Itinerary Generator</title>
 
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Main stylesheet (drop-in your style.css) -->
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Mapbox CSS -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+
+  <!-- Custom CSS -->
   <link rel="stylesheet" href="style.css" />
-
-  <!-- Small inline styles to ensure map container has initial height before CSS loads -->
-  <style>
-    #map { min-height: 360px; height: 100%; border-radius: 18px; }
-    /* Prevent layout shift for fonts */
-    html { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial; }
-  </style>
 </head>
-<body>
-  <!-- Header -->
-  <header class="app-header glow">
-    <div class="brand">
-      <div class="logo">🧭</div>
-      <div class="title">
-        <h1>AI Travel Itinerary</h1>
-        <p>Netlify · Google AI Studio (Gemini) · Google Maps</p>
-      </div>
+<body class="font-[Poppins] bg-gradient-to-r from-indigo-100 via-white to-indigo-50">
+
+  <!-- Navbar -->
+  <nav class="bg-white shadow-md fixed top-0 left-0 right-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+      <h1 class="text-2xl font-bold text-indigo-600">✈️ AI Trip Planner</h1>
     </div>
+  </nav>
 
-    <a class="badge" href="#setup">Setup Guide ↓</a>
-  </header>
+  <!-- Hero Section -->
+  <section class="pt-28 pb-12 text-center">
+    <h2 class="text-4xl md:text-5xl font-bold text-gray-800 mb-4 animate-fadeIn">Plan Smarter, Travel Better 🌍</h2>
+    <p class="text-gray-600 text-lg max-w-2xl mx-auto">Enter your trip details and let AI craft a personalized travel itinerary — with map pins & dining spots.</p>
+  </section>
 
-  <!-- Main Layout -->
-  <main class="layout">
-    <!-- Left column: Form + Results -->
-    <section class="left">
-      <!-- Form: city, budget, days, preferences, Gemini key, Maps key -->
-      <form id="trip-form" class="card enter-up" autocomplete="off">
-        <div class="row two">
-          <div class="field">
-            <label for="city">City</label>
-            <input id="city" name="city" placeholder="e.g., Jaipur" required />
-          </div>
-          <div class="field">
-            <label for="budget">Budget (INR)</label>
-            <input id="budget" name="budget" type="number" min="0" placeholder="e.g., 15000" required />
-          </div>
-        </div>
+  <!-- Input Form -->
+  <section class="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl p-8 mb-10 animate-slideUp">
+    <form id="tripForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+        <input type="text" id="city" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500" placeholder="e.g. Faridabad">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Budget (INR)</label>
+        <input type="number" id="budget" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500" placeholder="20000">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Number of Days</label>
+        <input type="number" id="days" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500" placeholder="3">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Preferences</label>
+        <input type="text" id="preferences" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500" placeholder="Relaxed, culture, food">
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Gemini API Key</label>
+        <input type="password" id="apiKey" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500" placeholder="Enter your Google AI Studio API key">
+      </div>
+      <div class="md:col-span-2 flex justify-center">
+        <button type="submit" class="bg-indigo-600 text-white px-6 py-3 rounded-xl shadow-lg hover:bg-indigo-700 transition-all">Generate Itinerary</button>
+      </div>
+    </form>
+  </section>
 
-        <div class="row two">
-          <div class="field">
-            <label for="days">Days</label>
-            <input id="days" name="days" type="number" min="1" max="14" value="3" required />
-          </div>
-          <div class="field">
-            <label for="preferences">Preferences</label>
-            <input id="preferences" name="preferences" placeholder="e.g., history, street food, markets" />
-          </div>
-        </div>
+  <!-- Output Section -->
+  <section class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <!-- Itinerary Results -->
+    <div id="results" class="space-y-6"></div>
 
-        <div class="row two">
-          <div class="field">
-            <label for="geminiKey">Gemini (Google AI Studio) API Key</label>
-            <input id="geminiKey" name="geminiKey" placeholder="Paste your Gemini API key" />
-          </div>
-          <div class="field">
-            <label for="mapsKey">Google Maps API Key</label>
-            <input id="mapsKey" name="mapsKey" placeholder="Paste your Google Maps API key" />
-          </div>
-        </div>
-
-        <div class="actions">
-          <button id="generateBtn" type="submit" class="btn-primary">Generate Itinerary</button>
-          <button id="clearBtn" type="button" class="btn-ghost">Clear</button>
-        </div>
-
-        <p class="hint">Keys are used only in your browser for this session. For production, restrict the Maps key to your Netlify domain (recommended).</p>
-      </form>
-
-      <!-- Output stack: summary + day cards will be injected here by app.js -->
-      <section id="output" class="stack" aria-live="polite"></section>
-    </section>
-
-    <!-- Right column: Map -->
-    <section class="right">
-      <div id="map" class="map card enter-up" role="application" aria-label="Map showing itinerary pins"></div>
-      <div id="map-status" class="map-status">Map is ready. Pins will appear after generation.</div>
-    </section>
-  </main>
+    <!-- Mapbox Map -->
+    <div class="h-[500px] lg:h-full w-full rounded-2xl overflow-hidden shadow-xl">
+      <div id="map" class="h-full w-full"></div>
+    </div>
+  </section>
 
   <!-- Footer -->
-  <footer class="footer">
-    <span>Built for speed — Pure Frontend • Deployed on Netlify • © contributors</span>
+  <footer class="mt-16 py-6 text-center text-gray-500 text-sm">
+    Built with ❤️ using Gemini AI + Mapbox + Netlify
   </footer>
 
-  <!-- App logic (app.js). Make sure file exists in same folder. -->
-  <script src="app.js"></script>
+  <!-- Mapbox JS -->
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
 
-  <!-- Optional: small accessibility/help anchor for setup instructions in README; not required -->
-  <a id="setup" style="display:none" href="#"></a>
+  <!-- App Logic -->
+  <script src="app.js"></script>
 </body>
 </html>
+
