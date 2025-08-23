@@ -1,87 +1,121 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Travel Itinerary Generator</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI Travel Itinerary — Luxury Planner</title>
+  <meta name="description" content="Generate pro travel itineraries with AI and see recommended spots on an interactive map. Netlify-ready." />
 
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
 
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Mapbox CSS (map UI) -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
 
-  <!-- Mapbox CSS -->
-  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
-
-  <!-- Custom CSS -->
+  <!-- Your custom styles -->
   <link rel="stylesheet" href="style.css" />
+  <!-- Small inline safety styles to avoid FOUC -->
+  <style>
+    html { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial; }
+    #map { min-height: 380px; height: 100%; border-radius: 18px; overflow: hidden; }
+  </style>
 </head>
-<body class="font-[Poppins] bg-gradient-to-r from-indigo-100 via-white to-indigo-50">
+<body class="app-bg">
 
-  <!-- Navbar -->
-  <nav class="bg-white shadow-md fixed top-0 left-0 right-0 z-50">
-    <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-      <h1 class="text-2xl font-bold text-indigo-600">✈️ AI Trip Planner</h1>
+  <!-- ===== Header ===== -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <div class="logo">🧭</div>
+        <div>
+          <div class="brand-title">AI Trip Planner</div>
+          <div class="brand-sub">Plan smarter · Travel better</div>
+        </div>
+      </div>
+
+      <nav class="nav-right" aria-hidden="true">
+        <a class="cta" href="#how">How it works</a>
+      </nav>
     </div>
-  </nav>
+  </header>
 
-  <!-- Hero Section -->
-  <section class="pt-28 pb-12 text-center">
-    <h2 class="text-4xl md:text-5xl font-bold text-gray-800 mb-4 animate-fadeIn">Plan Smarter, Travel Better 🌍</h2>
-    <p class="text-gray-600 text-lg max-w-2xl mx-auto">Enter your trip details and let AI craft a personalized travel itinerary — with map pins & dining spots.</p>
-  </section>
+  <!-- ===== Hero / Form Area ===== -->
+  <main class="container main-grid" role="main">
+    <section class="hero">
+      <h1 class="hero-title">Plan smarter, travel better ✨</h1>
+      <p class="hero-lead">Enter city, budget and preferences — our AI crafts a compact, actionable itinerary with map pins and dining suggestions.</p>
 
-  <!-- Input Form -->
-  <section class="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl p-8 mb-10 animate-slideUp">
-    <form id="tripForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
-        <input type="text" id="city" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500" placeholder="e.g. Faridabad">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Budget (INR)</label>
-        <input type="number" id="budget" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500" placeholder="20000">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Number of Days</label>
-        <input type="number" id="days" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500" placeholder="3">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Preferences</label>
-        <input type="text" id="preferences" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500" placeholder="Relaxed, culture, food">
-      </div>
-      <div class="md:col-span-2">
-        <label class="block text-sm font-medium text-gray-700 mb-1">Gemini API Key</label>
-        <input type="password" id="apiKey" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500" placeholder="Enter your Google AI Studio API key">
-      </div>
-      <div class="md:col-span-2 flex justify-center">
-        <button type="submit" class="bg-indigo-600 text-white px-6 py-3 rounded-xl shadow-lg hover:bg-indigo-700 transition-all">Generate Itinerary</button>
-      </div>
-    </form>
-  </section>
+      <!-- Form card -->
+      <form id="tripForm" class="card form-card" autocomplete="off" aria-label="Trip planning form">
+        <div class="form-grid">
+          <label class="field">
+            <span class="label">City</span>
+            <input id="city" name="city" type="text" placeholder="e.g., Faridabad" required />
+          </label>
 
-  <!-- Output Section -->
-  <section class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
-    <!-- Itinerary Results -->
-    <div id="results" class="space-y-6"></div>
+          <label class="field">
+            <span class="label">Budget (INR)</span>
+            <input id="budget" name="budget" type="number" placeholder="e.g., 20000" required />
+          </label>
 
-    <!-- Mapbox Map -->
-    <div class="h-[500px] lg:h-full w-full rounded-2xl overflow-hidden shadow-xl">
-      <div id="map" class="h-full w-full"></div>
+          <label class="field">
+            <span class="label">Number of days</span>
+            <input id="days" name="days" type="number" min="1" max="14" value="3" required />
+          </label>
+
+          <label class="field">
+            <span class="label">Preferences</span>
+            <input id="preferences" name="preferences" type="text" placeholder="e.g., relaxed, food, culture" />
+          </label>
+        </div>
+
+        <div class="form-actions">
+          <button id="generateBtn" type="submit" class="btn-primary">Generate Itinerary</button>
+          <button id="clearBtn" type="button" class="btn-ghost">Clear</button>
+        </div>
+
+        <p class="muted">Note: You do <strong>not</strong> paste your Gemini secret key here. The app calls Gemini via a protected Netlify serverless function (keys stored in Netlify environment variables).</p>
+      </form>
+    </section>
+
+    <!-- ===== Results + Map ===== -->
+    <aside class="right-column">
+      <div id="results" class="stack" aria-live="polite">
+        <!-- Summary card + day cards will be injected here by script.js -->
+      </div>
+
+      <div class="map-card card">
+        <div class="map-header">
+          <h3>Interactive Map</h3>
+          <div id="map-status" class="muted">Map ready — pins appear after generation.</div>
+        </div>
+        <div id="map" role="application" aria-label="Map with itinerary pins"></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- ===== Footer ===== -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="foot-left">© <strong>AI Trip Planner</strong> · Built with Gemini & Mapbox</div>
+      <div class="foot-right muted">Deployed to Netlify • Keys kept secure server-side</div>
     </div>
-  </section>
-
-  <!-- Footer -->
-  <footer class="mt-16 py-6 text-center text-gray-500 text-sm">
-    Built with ❤️ using Gemini AI + Mapbox + Netlify
   </footer>
 
+  <!-- ===== Scripts ===== -->
   <!-- Mapbox JS -->
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
 
-  <!-- App Logic -->
-  <script src="app.js"></script>
+  <!-- Your app logic -->
+  <!-- Replace script.js with the file I'll provide next. It reads no secret Gemini key from frontend. -->
+  <script src="script.js"></script>
+
+  <!-- Small accessibility helper: focus first input on load -->
+  <script>
+    window.addEventListener('load', () => {
+      const c = document.getElementById('city');
+      if (c) c.focus({preventScroll:true});
+    });
+  </script>
 </body>
 </html>
-
