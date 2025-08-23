@@ -1,164 +1,144 @@
-// app.js
+// app.js - Travel Planner Pro (Final Fixed)
 
-// DOM Elements
+// Form + Elements
 const form = document.getElementById("travel-form");
 const output = document.getElementById("output");
 const errorBox = document.getElementById("error");
 const errorMessage = document.getElementById("error-message");
 const loading = document.getElementById("loading");
 const debugInfo = document.getElementById("debug-info");
-const debugBox = document.getElementById("debug");
 
-// Initialize Mapbox (will be set later)
+// Mapbox
 let map;
 
-// 🔹 Fetch Mapbox Token securely from Netlify Function
-async function getMapboxToken() {
-    try {
-        const res = await fetch("/.netlify/functions/get-mapbox-token");
-        const data = await res.json();
-        return data.token;
-    } catch (err) {
-        console.error("Error fetching Mapbox token:", err);
-        return null;
-    }
-}
+// Load Map with Geocoding
+async function loadMap(city) {
+  try {
+    const tokenRes = await fetch("/.netlify/functions/get-mapbox-token");
+    const { token } = await tokenRes.json();
 
-// 🔹 Show error
-function showError(message) {
-    errorBox.classList.remove("hidden");
-    errorMessage.textContent = message;
-    loading.classList.add("hidden");
-}
+    // Geocode City → Lat/Lng
+    const geoRes = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(city)}.json?access_token=${token}`
+    );
+    const geoData = await geoRes.json();
 
-// 🔹 Hide error
-function hideError() {
-    errorBox.classList.add("hidden");
-    errorMessage.textContent = "";
-}
-
-// 🔹 Show debug
-function logDebug(message) {
-    debugBox.classList.remove("hidden");
-    debugInfo.textContent = message;
-}
-
-// 🔹 Hide debug
-function hideDebug() {
-    debugBox.classList.add("hidden");
-    debugInfo.textContent = "";
-}
-
-// 🔹 Render Map
-async function renderMap(coordinates = [77.2090, 28.6139]) { // Default Delhi
-    const token = await getMapboxToken();
-    if (!token) {
-        showError("Mapbox token not found. Please check Netlify env settings.");
-        return;
+    if (!geoData.features || geoData.features.length === 0) {
+      throw new Error("Location not found");
     }
 
-    mapboxgl.accessToken = token;
+    const [lng, lat] = geoData.features[0].center;
 
+    // Init map if not already
     if (!map) {
-        map = new mapboxgl.Map({
-            container: "preview-map",
-            style: "mapbox://styles/mapbox/streets-v11",
-            center: coordinates,
-            zoom: 10
-        });
+      mapboxgl.accessToken = token;
+      map = new mapboxgl.Map({
+        container: "preview-map",
+        style: "mapbox://styles/mapbox/streets-v11",
+        center: [lng, lat],
+        zoom: 10,
+      });
     } else {
-        map.setCenter(coordinates);
+      map.setCenter([lng, lat]);
     }
 
-    new mapboxgl.Marker().setLngLat(coordinates).addTo(map);
+    // Clear old markers
+    const markers = document.querySelectorAll(".mapboxgl-marker");
+    markers.forEach(m => m.remove());
+
+    // Add new marker
+    new mapboxgl.Marker().setLngLat([lng, lat]).addTo(map);
+
+  } catch (err) {
+    console.error("Map load error:", err);
+    document.getElementById("preview-map").innerHTML =
+      "<p class='text-red-400'>Map failed to load</p>";
+  }
 }
 
-// 🔹 Display itinerary
+// Display Itinerary
 function displayItinerary(data) {
-    output.innerHTML = "";
+  output.innerHTML = "";
 
-    // Trip Summary
-    const summaryCard = document.createElement("div");
-    summaryCard.className = "glass rounded-3xl p-6 shadow-lg";
-    summaryCard.innerHTML = `
-        <h2 class="text-2xl font-bold text-white mb-2">${data.summary.title}</h2>
-        <p class="text-blue-100">${data.summary.description}</p>
-        <p class="text-green-300 font-bold mt-3">💰 Total Cost: ₹${data.total_cost}</p>
-    `;
-    output.appendChild(summaryCard);
+  // Trip Summary
+  const summaryCard = document.createElement("div");
+  summaryCard.className = "glass rounded-3xl p-6 shadow-2xl";
+  summaryCard.innerHTML = `
+    <h2 class="text-2xl font-bold text-white mb-4">Trip Summary</h2>
+    <p class="text-blue-100">${data.summary}</p>
+    <p class="text-green-300 font-semibold mt-2">Estimated Cost: ₹${data.total_cost}</p>
+  `;
+  output.appendChild(summaryCard);
 
-    // Hotels
-    const hotelsCard = document.createElement("div");
-    hotelsCard.className = "glass rounded-3xl p-6 shadow-lg";
-    hotelsCard.innerHTML = `<h3 class="text-xl font-bold text-white mb-4">🏨 Recommended Hotels</h3>`;
-    data.hotels.forEach(hotel => {
-        const div = document.createElement("div");
-        div.className = "mb-3 p-3 bg-blue-800/40 rounded-lg";
-        div.innerHTML = `
-            <p class="text-white font-semibold">${hotel.name} (${hotel.category})</p>
-            <p class="text-blue-200">₹${hotel.price_per_night} per night | ⭐ ${hotel.rating}</p>
-            <p class="text-sm text-blue-300">${hotel.distance_from_center}</p>
-            <a href="${hotel.link}" target="_blank" class="text-purple-300 underline">Book Now</a>
-        `;
-        hotelsCard.appendChild(div);
-    });
-    output.appendChild(hotelsCard);
+  // Hotels
+  const hotelsCard = document.createElement("div");
+  hotelsCard.className = "glass rounded-3xl p-6 shadow-2xl";
+  hotelsCard.innerHTML = `<h2 class="text-2xl font-bold text-white mb-4">Recommended Hotels</h2>`;
+  data.hotels.forEach(hotel => {
+    const div = document.createElement("div");
+    div.className = "p-4 mb-3 bg-blue-800/40 rounded-2xl text-blue-100";
+    div.innerHTML = `<p class="font-semibold">${hotel.name}</p><p>${hotel.address}</p>`;
+    hotelsCard.appendChild(div);
+  });
+  output.appendChild(hotelsCard);
 
-    // Daily Itinerary
-    data.itinerary.forEach(day => {
-        const dayCard = document.createElement("div");
-        dayCard.className = "glass rounded-3xl p-6 shadow-lg";
-        dayCard.innerHTML = `
-            <h3 class="text-xl font-bold text-white mb-3">Day ${day.day}: ${day.theme}</h3>
-            <p class="text-blue-200"><b>🌅 Morning:</b> ${day.morning.activity} (₹${day.morning.cost})</p>
-            <p class="text-blue-200"><b>☀️ Afternoon:</b> ${day.afternoon.activity} (₹${day.afternoon.cost})</p>
-            <p class="text-blue-200"><b>🌙 Evening:</b> ${day.evening.activity} (₹${day.evening.cost})</p>
-            <p class="text-blue-200"><b>🍽 Dining:</b> ${day.dining.restaurant} - ${day.dining.cuisine} (₹${day.dining.cost})</p>
-            <p class="text-green-300 font-semibold">Hotel: ${day.hotel.name} (₹${day.hotel.price})</p>
-            <p class="text-purple-300 font-semibold mt-2">💰 Daily Cost: ₹${day.daily_cost}</p>
-        `;
-        output.appendChild(dayCard);
-    });
+  // Day-wise Plan
+  const planCard = document.createElement("div");
+  planCard.className = "glass rounded-3xl p-6 shadow-2xl";
+  planCard.innerHTML = `<h2 class="text-2xl font-bold text-white mb-4">Day by Day Itinerary</h2>`;
+  data.itinerary.forEach(day => {
+    const div = document.createElement("div");
+    div.className = "p-4 mb-3 bg-purple-800/40 rounded-2xl text-purple-100";
+    div.innerHTML = `<p class="font-semibold">${day.day}</p><p>${day.activities}</p>`;
+    planCard.appendChild(div);
+  });
+  output.appendChild(planCard);
 
-    output.classList.remove("hidden");
+  output.classList.remove("hidden");
 }
 
-// 🔹 Form Submit
+// Handle Form Submit
 form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    hideError();
-    hideDebug();
-    output.classList.add("hidden");
-    loading.classList.remove("hidden");
+  e.preventDefault();
 
-    const city = document.getElementById("city").value.trim();
-    const budget = document.getElementById("budget").value.trim();
-    const days = document.getElementById("days").value.trim();
-    const preferences = document.getElementById("preferences").value.trim();
+  // Values
+  const city = document.getElementById("city").value.trim();
+  const budget = document.getElementById("budget").value.trim();
+  const days = document.getElementById("days").value.trim();
+  const preferences = document.getElementById("preferences").value.trim();
 
-    if (!city || !budget || !days) {
-        showError("⚠️ Please fill in all required fields!");
-        return;
-    }
+  // Validation
+  if (!city || !budget || !days) {
+    errorMessage.innerText = "⚠️ Please fill all required fields!";
+    errorBox.classList.remove("hidden");
+    return;
+  }
 
-    try {
-        const response = await fetch("/.netlify/functions/generate", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ city, budget, days, preferences })
-        });
+  errorBox.classList.add("hidden");
+  output.classList.add("hidden");
+  loading.classList.remove("hidden");
 
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "API Error");
+  try {
+    // Show city on map
+    loadMap(city);
 
-        displayItinerary(data);
+    // API Call (AI itinerary)
+    const res = await fetch("/.netlify/functions/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ city, budget, days, preferences }),
+    });
 
-        // Show map (mock coords for now)
-        renderMap([77.2090, 28.6139]);
+    if (!res.ok) throw new Error("API request failed");
 
-        loading.classList.add("hidden");
-    } catch (err) {
-        showError("Error generating itinerary: " + err.message);
-        logDebug(err.stack);
-    }
+    const data = await res.json();
+
+    displayItinerary(data);
+  } catch (err) {
+    console.error(err);
+    errorMessage.innerText = "❌ Failed to generate itinerary. Try again.";
+    errorBox.classList.remove("hidden");
+  } finally {
+    loading.classList.add("hidden");
+  }
 });
