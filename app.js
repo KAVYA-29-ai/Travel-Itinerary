@@ -1,97 +1,94 @@
-/* Global reset */
-* { box-sizing: border-box; margin: 0; padding: 0; }
+// ===== MAPBOX INIT =====
+mapboxgl.accessToken = "PASTE_YOUR_MAPBOX_TOKEN_HERE"; // your Mapbox token
+const map = new mapboxgl.Map({
+  container: "map",
+  style: "mapbox://styles/mapbox/streets-v12",
+  center: [77.2090, 28.6139], // Default: Delhi
+  zoom: 9
+});
 
-html, body {
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial;
-  background: #0f1117;
-  color: #f8f8f8;
-  line-height: 1.6;
-  height: 100%;
-  width: 100%;
+// ===== FORM HANDLER =====
+const form = document.getElementById("tripForm");
+const resultsDiv = document.getElementById("results");
+const generateBtn = document.getElementById("generateBtn");
+const clearBtn = document.getElementById("clearBtn");
+const mapStatus = document.getElementById("map-status");
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  generateBtn.disabled = true;
+  generateBtn.innerText = "Generating…";
+
+  const city = document.getElementById("city").value;
+  const budget = document.getElementById("budget").value;
+  const days = document.getElementById("days").value;
+  const preferences = document.getElementById("preferences").value;
+
+  try {
+    const res = await fetch("/.netlify/functions/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ city, budget, days, preferences })
+    });
+    const data = await res.json();
+    renderResults(data);
+    plotMap(data);
+  } catch (err) {
+    console.error(err);
+    resultsDiv.innerHTML = `<div class="card">❌ Error generating itinerary</div>`;
+  } finally {
+    generateBtn.disabled = false;
+    generateBtn.innerText = "Generate Itinerary";
+  }
+});
+
+clearBtn.addEventListener("click", () => {
+  resultsDiv.innerHTML = "";
+  form.reset();
+});
+
+// ===== RENDER RESULTS =====
+function renderResults(data) {
+  resultsDiv.innerHTML = "";
+
+  const summary = document.createElement("div");
+  summary.className = "card summary-card";
+  summary.innerHTML = `<h3>✨ Your ${data.city} Itinerary</h3>
+    <p><strong>Budget:</strong> ₹${data.budget} | <strong>Days:</strong> ${data.days}</p>
+    <p><strong>Preferences:</strong> ${data.preferences || "—"}</p>`;
+  resultsDiv.appendChild(summary);
+
+  data.itinerary.forEach((day, i) => {
+    const dayCard = document.createElement("div");
+    dayCard.className = "card day-card";
+    dayCard.innerHTML = `<h4>Day ${i+1}</h4><p>${day.activities.join("<br>")}</p>`;
+    resultsDiv.appendChild(dayCard);
+  });
 }
 
-/* Smooth fade/slide animations */
-@keyframes fadeUp {
-  0% { opacity: 0; transform: translateY(20px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-.enter-up { animation: fadeUp 0.6s ease forwards; }
+// ===== MAP PINS =====
+function plotMap(data) {
+  mapStatus.textContent = "📍 Plotting pins…";
 
-/* Header */
-.app-header {
-  padding: 1rem 2rem;
-  display: flex; align-items: center; justify-content: space-between;
-  background: linear-gradient(90deg,#1e1f29,#2d3142);
-  box-shadow: 0 2px 20px rgba(0,0,0,0.4);
-  position: sticky; top: 0; z-index: 10;
-}
-.app-header .brand { display: flex; align-items: center; gap: 1rem; }
-.app-header .logo { font-size: 2rem; }
-.app-header .title h1 { font-weight: 800; font-size: 1.4rem; }
-.app-header .title p { font-size: 0.85rem; color: #aaa; }
-.app-header .badge {
-  color: #fff; text-decoration: none; font-weight: 600;
-  background: #ff3366; padding: 0.4rem 0.8rem;
-  border-radius: 8px; transition: all 0.3s;
-}
-.app-header .badge:hover { background: #ff5588; }
+  if (!data.locations) {
+    mapStatus.textContent = "No locations returned.";
+    return;
+  }
 
-/* Layout */
-.layout {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 2rem; padding: 2rem;
-}
-.left, .right { display: flex; flex-direction: column; gap: 1.5rem; }
+  // Clear old markers
+  document.querySelectorAll(".mapboxgl-marker").forEach(m => m.remove());
 
-/* Card look */
-.card {
-  background: #1a1c25;
-  padding: 1.5rem;
-  border-radius: 18px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
-}
+  data.locations.forEach(loc => {
+    new mapboxgl.Marker({ color: "#6a5acd" })
+      .setLngLat([loc.lng, loc.lat])
+      .setPopup(new mapboxgl.Popup().setHTML(`<strong>${loc.name}</strong><br>${loc.type}`))
+      .addTo(map);
+  });
 
-/* Form */
-form .row { display: flex; gap: 1rem; margin-bottom: 1rem; }
-form .row.two > * { flex: 1; }
-.field label { font-size: 0.85rem; color: #ccc; margin-bottom: 0.4rem; display:block; }
-.field input {
-  width: 100%; padding: 0.7rem 0.9rem;
-  border-radius: 10px; border: 1px solid #333;
-  background: #0f1117; color: #fff;
-}
-.actions { display: flex; gap: 1rem; margin-top: 0.5rem; }
-.btn-primary, .btn-ghost {
-  flex: 1; padding: 0.9rem; font-weight: 600; border-radius: 10px;
-  border: none; cursor: pointer; transition: all 0.25s;
-}
-.btn-primary { background: #ff3366; color: #fff; }
-.btn-primary:hover { background: #ff5588; }
-.btn-ghost { background: #2a2d38; color: #eee; }
-.btn-ghost:hover { background: #44495c; }
-.hint { font-size: 0.75rem; color: #999; margin-top: 0.7rem; }
+  if (data.locations.length > 0) {
+    map.flyTo({ center: [data.locations[0].lng, data.locations[0].lat], zoom: 12 });
+  }
 
-/* Output stack */
-.stack { display: flex; flex-direction: column; gap: 1.2rem; }
-.stack .day-card {
-  background: #242732; padding: 1rem; border-radius: 12px;
-  border-left: 4px solid #ff3366; animation: fadeUp 0.5s ease;
-}
-.stack .day-card h3 { font-weight: 700; margin-bottom: 0.5rem; }
-
-/* Map */
-.map { width: 100%; height: 500px; }
-.map-status { font-size: 0.8rem; color: #aaa; margin-top: 0.5rem; }
-
-/* Footer */
-.footer {
-  padding: 1rem; text-align: center; font-size: 0.8rem; color: #888;
-  border-top: 1px solid #222;
-  margin-top: 2rem;
-}
-
-/* Responsive */
-@media (max-width: 880px) {
-  .layout { grid-template-columns: 1fr; }
-  .right { order: -1; }
+  mapStatus.textContent = "✅ Pins added to map!";
 }
