@@ -1,7 +1,7 @@
-// netlify/functions/generate.js
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-
+// netlify/functions/generate.js - SIMPLIFIED VERSION
 exports.handler = async function(event, context) {
+    console.log('Function called with:', event.body);
+    
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
@@ -12,97 +12,70 @@ exports.handler = async function(event, context) {
     try {
         const { city, budget, days, preferences } = JSON.parse(event.body);
         
-        if (!city || !budget || !days) {
-            return {
-                statusCode: 400,
-                body: JSON.stringify({ error: 'Missing required fields: city, budget, days' })
-            };
-        }
+        console.log('Generating itinerary for:', { city, budget, days, preferences });
 
-        // Initialize Google AI
-        const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-
-        const prompt = `
-        Generate a detailed travel itinerary for ${city} with a total budget of ₹${budget} for ${days} days.
-        Preferences: ${preferences || 'None specified'}.
-        
-        Return ONLY valid JSON in this exact structure:
-        {
-          "summary": {
-            "title": "Brief trip title",
-            "description": "Detailed description of the trip including highlights, best time to visit, travel tips, and overall experience."
-          },
-          "hotels": [
-            {
-              "name": "Hotel Name",
-              "price_per_night": 2500,
-              "category": "Budget/Mid-range/Luxury",
-              "distance_from_center": "2.5 km from city center",
-              "rating": 4.2,
-              "features": ["Free WiFi", "Breakfast", "Swimming Pool"],
-              "link": "https://booking.com/hotel-example"
-            }
-          ],
-          "itinerary": [
-            {
-              "day": 1,
-              "theme": "City Exploration",
-              "morning": {
-                "activity": "Visit local landmarks and museums",
-                "cost": 500,
-                "map_url": "https://goo.gl/maps/example",
-                "coordinates": [longitude, latitude]
-              },
-              "afternoon": {
-                "activity": "Lunch and shopping",
-                "cost": 800,
-                "map_url": "https://goo.gl/maps/example",
-                "coordinates": [longitude, latitude]
-              },
-              "evening": {
-                "activity": "Dinner and local entertainment",
-                "cost": 1200,
-                "map_url": "https://goo.gl/maps/example",
-                "coordinates": [longitude, latitude]
-              },
-              "dining": {
-                "restaurant": "Local Restaurant Name",
-                "cuisine": "Local/International",
-                "cost": 1500,
-                "map_url": "https://goo.gl/maps/example",
-                "coordinates": [longitude, latitude]
-              },
-              "hotel": {
-                "name": "Hotel Name",
-                "price": 2500
-              },
-              "daily_cost": 6500
-            }
-          ],
-          "total_cost": ${budget}
-        }
-
-        Important:
-        - Ensure total_cost does NOT exceed ₹${budget}
-        - Include realistic prices for Indian travelers
-        - Add map URLs (Google Maps) and approximate coordinates
-        - Make hotels and activities fit the budget category
-        - Include diverse activities based on preferences
-        - Return ONLY the JSON, no additional text
-        `;
-
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
-
-        // Extract JSON from the response
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-            throw new Error('Invalid response format from AI');
-        }
-
-        const itinerary = JSON.parse(jsonMatch[0]);
+        // Mock response for testing
+        const mockResponse = {
+            summary: {
+                title: `Amazing ${days}-Day ${city} Adventure`,
+                description: `Explore ${city} with this perfect ${days}-day itinerary designed for a budget of ₹${budget}. ${preferences ? `Special focus on: ${preferences}` : ''}`
+            },
+            hotels: [
+                {
+                    name: "Luxury Palace Hotel",
+                    price_per_night: Math.floor(budget / days / 2),
+                    category: "Luxury",
+                    distance_from_center: "1.5 km from center",
+                    rating: 4.7,
+                    features: ["Pool", "Spa", "Free WiFi"],
+                    link: "https://booking.com"
+                },
+                {
+                    name: "Mid-range Comfort Inn",
+                    price_per_night: Math.floor(budget / days / 3),
+                    category: "Mid-range",
+                    distance_from_center: "2.8 km from center",
+                    rating: 4.2,
+                    features: ["Breakfast", "Parking", "AC"],
+                    link: "https://booking.com"
+                }
+            ],
+            itinerary: Array.from({length: parseInt(days)}, (_, i) => ({
+                day: i + 1,
+                theme: `${city} Exploration Day ${i + 1}`,
+                morning: {
+                    activity: `Visit ${city}'s famous landmarks`,
+                    cost: Math.floor(budget / days / 4),
+                    map_url: "https://maps.google.com",
+                    coordinates: [0, 0]
+                },
+                afternoon: {
+                    activity: "Lunch and local experience",
+                    cost: Math.floor(budget / days / 5),
+                    map_url: "https://maps.google.com",
+                    coordinates: [0, 0]
+                },
+                evening: {
+                    activity: "Dinner and entertainment",
+                    cost: Math.floor(budget / days / 4),
+                    map_url: "https://maps.google.com",
+                    coordinates: [0, 0]
+                },
+                dining: {
+                    restaurant: "Authentic Local Restaurant",
+                    cuisine: "Local Specialties",
+                    cost: Math.floor(budget / days / 6),
+                    map_url: "https://maps.google.com",
+                    coordinates: [0, 0]
+                },
+                hotel: {
+                    name: i % 2 === 0 ? "Luxury Palace Hotel" : "Mid-range Comfort Inn",
+                    price: Math.floor(budget / days / (i % 2 === 0 ? 2 : 3))
+                },
+                daily_cost: Math.floor(budget / days)
+            })),
+            total_cost: parseInt(budget)
+        };
 
         return {
             statusCode: 200,
@@ -111,7 +84,7 @@ exports.handler = async function(event, context) {
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Headers': 'Content-Type'
             },
-            body: JSON.stringify(itinerary)
+            body: JSON.stringify(mockResponse)
         };
 
     } catch (error) {
@@ -124,7 +97,7 @@ exports.handler = async function(event, context) {
                 'Access-Control-Allow-Headers': 'Content-Type'
             },
             body: JSON.stringify({ 
-                error: 'Failed to generate itinerary', 
+                error: 'Test mode: Using mock data',
                 details: error.message 
             })
         };
