@@ -1,0 +1,9 @@
+[build]
+  publish = "./"
+  command = ""
+
+# Optional: force pretty URLs without .html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
