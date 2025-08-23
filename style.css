@@ -1,97 +1,153 @@
-/* Global reset */
-* { box-sizing: border-box; margin: 0; padding: 0; }
+/* ====== Base Reset & Fonts ====== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+  font-family: 'Poppins', sans-serif;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  color: #f8fafc;
+  line-height: 1.7;
+  overflow-x: hidden;
+}
 
-html, body {
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial;
-  background: #0f1117;
-  color: #f8f8f8;
-  line-height: 1.6;
+/* ====== Navbar ====== */
+nav {
+  backdrop-filter: blur(20px);
+  background: rgba(15, 23, 42, 0.7);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 4px 30px rgba(0,0,0,0.3);
+  animation: slideDown 1s ease;
+}
+nav h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(90deg, #60a5fa, #818cf8, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ====== Hero Section ====== */
+header {
+  background: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e') center/cover no-repeat;
+  position: relative;
+}
+header::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(15,23,42,0.65);
+}
+header .relative {
+  position: relative;
+  z-index: 2;
+}
+
+/* ====== Form Styling ====== */
+form {
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 1.5rem;
+  backdrop-filter: blur(25px);
+  padding: 2rem;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  animation: fadeIn 1.5s ease;
+}
+form label {
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+form input, form textarea {
+  border: none;
+  background: rgba(255,255,255,0.15);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  color: #f1f5f9;
+  transition: all 0.3s ease;
+}
+form input:focus, form textarea:focus {
+  outline: none;
+  background: rgba(255,255,255,0.25);
+  box-shadow: 0 0 0 3px rgba(129,140,248,0.5);
+}
+form button {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899);
+  border: none;
+  border-radius: 1rem;
+  color: white;
+  padding: 0.9rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+form button:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 12px 25px rgba(99,102,241,0.5);
+}
+
+/* ====== Results Cards ====== */
+#results .day-card {
+  background: rgba(30, 41, 59, 0.85);
+  backdrop-filter: blur(15px);
+  border-radius: 1.25rem;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  padding: 1.8rem;
+  margin-bottom: 1.5rem;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  animation: slideUp 1.2s ease;
+}
+#results .day-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 15px 45px rgba(0,0,0,0.7);
+}
+#results h2 {
+  font-size: 1.5rem;
+  margin-bottom: 0.75rem;
+  background: linear-gradient(90deg, #38bdf8, #818cf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+#results p {
+  color: #e2e8f0;
+  font-size: 0.95rem;
+}
+
+/* ====== Mapbox Container ====== */
+#map {
+  border-radius: 1.5rem;
+  overflow: hidden;
   height: 100%;
-  width: 100%;
+  min-height: 400px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  animation: fadeIn 2s ease;
 }
 
-/* Smooth fade/slide animations */
-@keyframes fadeUp {
-  0% { opacity: 0; transform: translateY(20px); }
-  100% { opacity: 1; transform: translateY(0); }
+/* ====== Animations ====== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-.enter-up { animation: fadeUp 0.6s ease forwards; }
-
-/* Header */
-.app-header {
-  padding: 1rem 2rem;
-  display: flex; align-items: center; justify-content: space-between;
-  background: linear-gradient(90deg,#1e1f29,#2d3142);
-  box-shadow: 0 2px 20px rgba(0,0,0,0.4);
-  position: sticky; top: 0; z-index: 10;
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(60px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-.app-header .brand { display: flex; align-items: center; gap: 1rem; }
-.app-header .logo { font-size: 2rem; }
-.app-header .title h1 { font-weight: 800; font-size: 1.4rem; }
-.app-header .title p { font-size: 0.85rem; color: #aaa; }
-.app-header .badge {
-  color: #fff; text-decoration: none; font-weight: 600;
-  background: #ff3366; padding: 0.4rem 0.8rem;
-  border-radius: 8px; transition: all 0.3s;
-}
-.app-header .badge:hover { background: #ff5588; }
-
-/* Layout */
-.layout {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 2rem; padding: 2rem;
-}
-.left, .right { display: flex; flex-direction: column; gap: 1.5rem; }
-
-/* Card look */
-.card {
-  background: #1a1c25;
-  padding: 1.5rem;
-  border-radius: 18px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+@keyframes slideDown {
+  from { transform: translateY(-100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
-/* Form */
-form .row { display: flex; gap: 1rem; margin-bottom: 1rem; }
-form .row.two > * { flex: 1; }
-.field label { font-size: 0.85rem; color: #ccc; margin-bottom: 0.4rem; display:block; }
-.field input {
-  width: 100%; padding: 0.7rem 0.9rem;
-  border-radius: 10px; border: 1px solid #333;
-  background: #0f1117; color: #fff;
+/* ====== Responsive ====== */
+@media (max-width: 1024px) {
+  nav h1 { font-size: 1.5rem; }
+  form { padding: 1.5rem; }
 }
-.actions { display: flex; gap: 1rem; margin-top: 0.5rem; }
-.btn-primary, .btn-ghost {
-  flex: 1; padding: 0.9rem; font-weight: 600; border-radius: 10px;
-  border: none; cursor: pointer; transition: all 0.25s;
-}
-.btn-primary { background: #ff3366; color: #fff; }
-.btn-primary:hover { background: #ff5588; }
-.btn-ghost { background: #2a2d38; color: #eee; }
-.btn-ghost:hover { background: #44495c; }
-.hint { font-size: 0.75rem; color: #999; margin-top: 0.7rem; }
-
-/* Output stack */
-.stack { display: flex; flex-direction: column; gap: 1.2rem; }
-.stack .day-card {
-  background: #242732; padding: 1rem; border-radius: 12px;
-  border-left: 4px solid #ff3366; animation: fadeUp 0.5s ease;
-}
-.stack .day-card h3 { font-weight: 700; margin-bottom: 0.5rem; }
-
-/* Map */
-.map { width: 100%; height: 500px; }
-.map-status { font-size: 0.8rem; color: #aaa; margin-top: 0.5rem; }
-
-/* Footer */
-.footer {
-  padding: 1rem; text-align: center; font-size: 0.8rem; color: #888;
-  border-top: 1px solid #222;
-  margin-top: 2rem;
+@media (max-width: 768px) {
+  #results .day-card {
+    padding: 1.2rem;
+  }
+  form button {
+    width: 100%;
+  }
 }
 
-/* Responsive */
-@media (max-width: 880px) {
-  .layout { grid-template-columns: 1fr; }
-  .right { order: -1; }
-}
