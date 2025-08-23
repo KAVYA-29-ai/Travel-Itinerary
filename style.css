@@ -1,153 +1,375 @@
-/* ====== Base Reset & Fonts ====== */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-body {
-  font-family: 'Poppins', sans-serif;
-  background: linear-gradient(135deg, #1e293b, #0f172a);
-  color: #f8fafc;
-  line-height: 1.7;
-  overflow-x: hidden;
-}
+/* app.js
+   AI Travel Itinerary Generator (Gemini -> Mapbox)
+   - Expects index.html to include Mapbox GL JS via:
+       <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+       <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+   - index.html form must have these element IDs:
+       #tripForm, #city, #budget, #days, #preferences, #apiKey (Gemini), and #mapboxKey
+   - Map container ID: #map
+   - Results container ID: #results
+*/
 
-/* ====== Navbar ====== */
-nav {
-  backdrop-filter: blur(20px);
-  background: rgba(15, 23, 42, 0.7);
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  box-shadow: 0 4px 30px rgba(0,0,0,0.3);
-  animation: slideDown 1s ease;
-}
-nav h1 {
-  font-size: 2rem;
-  font-weight: 700;
-  background: linear-gradient(90deg, #60a5fa, #818cf8, #a78bfa);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
+(() => {
+  // ---------- Config ----------
+  const GEOCODE_DELAY_MS = 220; // pace geocoding calls (Mapbox generous but be polite)
+  const GEMINI_MODEL_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=";
+  // You can switch model id above if needed.
 
-/* ====== Hero Section ====== */
-header {
-  background: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e') center/cover no-repeat;
-  position: relative;
-}
-header::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: rgba(15,23,42,0.65);
-}
-header .relative {
-  position: relative;
-  z-index: 2;
-}
+  // ---------- DOM ----------
+  const form = document.getElementById("tripForm");
+  const resultsEl = document.getElementById("results");
+  const mapContainerId = "map";
 
-/* ====== Form Styling ====== */
-form {
-  background: rgba(255, 255, 255, 0.07);
-  border-radius: 1.5rem;
-  backdrop-filter: blur(25px);
-  padding: 2rem;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-  animation: fadeIn 1.5s ease;
-}
-form label {
-  font-weight: 600;
-  letter-spacing: 0.5px;
-}
-form input, form textarea {
-  border: none;
-  background: rgba(255,255,255,0.15);
-  border-radius: 0.75rem;
-  padding: 0.75rem 1rem;
-  color: #f1f5f9;
-  transition: all 0.3s ease;
-}
-form input:focus, form textarea:focus {
-  outline: none;
-  background: rgba(255,255,255,0.25);
-  box-shadow: 0 0 0 3px rgba(129,140,248,0.5);
-}
-form button {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899);
-  border: none;
-  border-radius: 1rem;
-  color: white;
-  padding: 0.9rem 1.5rem;
-  font-size: 1rem;
-  font-weight: 600;
-  letter-spacing: 1px;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-form button:hover {
-  transform: translateY(-3px) scale(1.03);
-  box-shadow: 0 12px 25px rgba(99,102,241,0.5);
-}
+  // ---------- Map State ----------
+  let map = null;
+  let mapboxToken = "";
+  let markerList = []; // keep references to remove later
 
-/* ====== Results Cards ====== */
-#results .day-card {
-  background: rgba(30, 41, 59, 0.85);
-  backdrop-filter: blur(15px);
-  border-radius: 1.25rem;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-  padding: 1.8rem;
-  margin-bottom: 1.5rem;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  animation: slideUp 1.2s ease;
-}
-#results .day-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 15px 45px rgba(0,0,0,0.7);
-}
-#results h2 {
-  font-size: 1.5rem;
-  margin-bottom: 0.75rem;
-  background: linear-gradient(90deg, #38bdf8, #818cf8);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-#results p {
-  color: #e2e8f0;
-  font-size: 0.95rem;
-}
-
-/* ====== Mapbox Container ====== */
-#map {
-  border-radius: 1.5rem;
-  overflow: hidden;
-  height: 100%;
-  min-height: 400px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-  animation: fadeIn 2s ease;
-}
-
-/* ====== Animations ====== */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(60px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes slideDown {
-  from { transform: translateY(-100%); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
-/* ====== Responsive ====== */
-@media (max-width: 1024px) {
-  nav h1 { font-size: 1.5rem; }
-  form { padding: 1.5rem; }
-}
-@media (max-width: 768px) {
-  #results .day-card {
-    padding: 1.2rem;
+  // ---------- Utilities ----------
+  function el(tag, cls, html) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (html !== undefined) e.innerHTML = html;
+    return e;
   }
-  form button {
-    width: 100%;
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
+
+  function setStatus(message, isError = false) {
+    // simple status display at top of results
+    let s = document.getElementById("__status_line");
+    if (!s) {
+      s = el("div", "card", "");
+      s.id = "__status_line";
+      resultsEl.prepend(s);
+    }
+    s.innerHTML = `<strong>${isError ? "⚠️ " : "ℹ️ "}</strong> ${escapeHTML(message)}`;
+    if (isError) s.style.borderLeft = "4px solid rgba(255,91,91,0.95)";
+    else s.style.borderLeft = "4px solid rgba(99,102,241,0.9)";
+  }
+
+  function clearStatus() {
+    const s = document.getElementById("__status_line");
+    if (s) s.remove();
+  }
+
+  function escapeHTML(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- JSON helpers ----------
+  function safeParseJSON(text) {
+    if (!text) throw new Error("Empty response text.");
+    // extract last JSON-like object from text (handles fences)
+    const match = text.match(/\{[\s\S]*\}$/);
+    const candidate = match ? match[0] : text;
+    try { return JSON.parse(candidate); }
+    catch (e) {
+      // lightly try to repair common issues
+      let repaired = candidate
+        .replace(/\r\n/g, "\n")
+        .replace(/,(\s*[}\]])/g, "$1")         // trailing commas
+        .replace(/([\[,])\s*,/g, "$1")         // stray commas
+        .replace(/([{,]\s*)'([^']*?)'/g, '$1"$2"') // single quotes -> double
+        .replace(/:\s*'([^']*)'/g, ': "$1"');
+      return JSON.parse(repaired); // let this throw if still invalid
+    }
+  }
+
+  function validateSchema(obj) {
+    if (!obj || typeof obj !== "object") throw new Error("Response is not an object.");
+    if (typeof obj.summary !== "string") throw new Error("Missing 'summary' string.");
+    if (!Array.isArray(obj.days)) throw new Error("Missing 'days' array.");
+    if (obj.days.length === 0) throw new Error("Days array is empty.");
+    obj.days.forEach((d, i) => {
+      if (typeof d.day !== "number") throw new Error(`Day ${i+1}: missing numeric 'day'.`);
+      if (typeof d.title !== "string") throw new Error(`Day ${i+1}: missing 'title'.`);
+      if (!Array.isArray(d.activities)) throw new Error(`Day ${i+1}: missing 'activities' array.`);
+      d.activities.forEach((a, j) => {
+        if (typeof a.place !== "string" || typeof a.description !== "string" || typeof a.map_query !== "string")
+          throw new Error(`Day ${i+1} activity ${j+1}: each activity must have {place, description, map_query}`);
+      });
+      if (!Array.isArray(d.dining)) throw new Error(`Day ${i+1}: missing 'dining' array.`);
+      d.dining.forEach((r, k) => {
+        if (typeof r.restaurant !== "string" || typeof r.cuisine !== "string" || typeof r.map_query !== "string")
+          throw new Error(`Day ${i+1} dining ${k+1}: each dining must have {restaurant, cuisine, map_query}`);
+      });
+    });
+    return obj;
+  }
+
+  // ---------- Gemini calls (simple 2-step chain) ----------
+  async function callGemini(apiKey, systemInstructions, userPrompt) {
+    const url = GEMINI_MODEL_URL + encodeURIComponent(apiKey);
+    const body = {
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: systemInstructions + "\n\n" + userPrompt }
+          ]
+        }
+      ],
+      // optional: adjust temperature/tokens via model params if needed (depends on model)
+    };
+
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    if (!resp.ok) {
+      const t = await resp.text();
+      throw new Error(`Gemini API error ${resp.status}: ${t}`);
+    }
+    const json = await resp.json();
+    // find candidate text
+    const text = json?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    if (!text) throw new Error("Gemini returned empty output.");
+    return text;
+  }
+
+  function buildJSONPrompt(city, budget, days, prefs) {
+    return `Return ONLY valid JSON matching this exact schema (no extra fields, no commentary):
+
+{
+  "summary": "trip overview",
+  "days": [
+    {
+      "day": 1,
+      "title": "Day title",
+      "activities": [
+        {"place": "Place name", "description": "Short desc", "map_query": "search string"}
+      ],
+      "dining": [
+        {"restaurant": "Restaurant name", "cuisine": "Type", "map_query": "search string"}
+      ]
+    }
+  ]
 }
 
+Rules:
+- days must equal ${days}.
+- activities: 3–5 per day; dining: 1–2 per day.
+- map_query must be concise, include the city, and be suitable for geocoding.
+- Optimize for budget INR ${budget} and preferences: ${prefs}.
+- Use local context where relevant (India).
+- Ensure strictly valid JSON.`;
+  }
+
+  function buildRefinePrompt(rawJsonText) {
+    return `Validate and minimally fix the following JSON so it matches the schema exactly (do not add fields). Ensure every activity and dining item has {place, description/restaurant, cuisine (for dining), map_query}. Return ONLY the final corrected JSON:
+
+${rawJsonText}`;
+  }
+
+  // ---------- Mapbox helpers ----------
+  function ensureMap(token, center = [77.3, 28.5], zoom = 11) {
+    mapboxToken = token;
+    if (!map) {
+      mapboxgl.accessToken = mapboxToken;
+      map = new mapboxgl.Map({
+        container: mapContainerId,
+        style: "mapbox://styles/mapbox/streets-v11",
+        center,
+        zoom,
+        bearing: 0,
+        pitch: 0
+      });
+      // add subtle UI controls
+      const nav = new mapboxgl.NavigationControl({ showCompass: true, showZoom: true });
+      map.addControl(nav, "top-left");
+    }
+  }
+
+  function clearMarkers() {
+    markerList.forEach(m => {
+      try { m.remove(); } catch (e) {}
+    });
+    markerList = [];
+  }
+
+  async function geocodeMapbox(query) {
+    // Use Mapbox geocoding endpoint (forward geocoding)
+    // We don't include proximity to keep results generic.
+    const encoded = encodeURIComponent(query);
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encoded}.json?access_token=${mapboxToken}&limit=1`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const t = await res.text();
+      console.warn("Geocode error:", res.status, t);
+      return null;
+    }
+    const j = await res.json();
+    if (!j.features || j.features.length === 0) return null;
+    const f = j.features[0];
+    return {
+      lng: f.center[0],
+      lat: f.center[1],
+      label: f.place_name || f.text
+    };
+  }
+
+  function addMarkerToMap(lat, lng, title, subtitle = "", color = "#ff6b6b") {
+    if (!map) return;
+    const elMarker = document.createElement("div");
+    elMarker.className = "ai-marker";
+    // marker style (circle + subtle glow)
+    elMarker.style.width = "18px";
+    elMarker.style.height = "18px";
+    elMarker.style.borderRadius = "50%";
+    elMarker.style.background = color;
+    elMarker.style.boxShadow = "0 6px 18px rgba(255,107,107,0.25)";
+    elMarker.style.border = "2px solid rgba(255,255,255,0.9)";
+
+    const marker = new mapboxgl.Marker({ element: elMarker })
+      .setLngLat([lng, lat])
+      .setPopup(new mapboxgl.Popup({ offset: 12 }).setHTML(`<strong>${escapeHTML(title)}</strong><div style="font-size:12px;color:#ddd">${escapeHTML(subtitle)}</div>`))
+      .addTo(map);
+
+    markerList.push(marker);
+    return marker;
+  }
+
+  // ---------- Rendering ----------
+  function renderItineraryCards(itinerary) {
+    resultsEl.innerHTML = ""; // wipe
+    clearStatus();
+
+    // Summary card
+    const summaryCard = el("div", "day-card");
+    summaryCard.innerHTML = `<h2>Trip Summary</h2><p>${escapeHTML(itinerary.summary)}</p>`;
+    resultsEl.appendChild(summaryCard);
+
+    // Day cards
+    itinerary.days.forEach(d => {
+      const card = el("div", "day-card");
+      const activitiesHtml = d.activities.map(a => `
+        <div style="margin-bottom:10px;">
+          <div style="font-weight:700">${escapeHTML(a.place)}</div>
+          <div style="color:#cbd5e1;font-size:13px">${escapeHTML(a.description)}</div>
+          <div style="color:#94a3b8;font-size:12px;margin-top:6px"><em>Query:</em> <code>${escapeHTML(a.map_query)}</code></div>
+        </div>
+      `).join("");
+
+      const diningHtml = d.dining.map(r => `
+        <div style="margin-bottom:10px;">
+          <div style="font-weight:700">${escapeHTML(r.restaurant)} <span style="font-weight:600;color:#93c5fd">• ${escapeHTML(r.cuisine)}</span></div>
+          <div style="color:#94a3b8;font-size:12px;margin-top:6px"><em>Query:</em> <code>${escapeHTML(r.map_query)}</code></div>
+        </div>
+      `).join("");
+
+      card.innerHTML = `<h3>Day ${d.day} — ${escapeHTML(d.title)}</h3>
+                        <div style="margin-top:12px"><strong>Activities</strong>${activitiesHtml}</div>
+                        <div style="margin-top:12px"><strong>Dining</strong>${diningHtml}</div>`;
+      resultsEl.appendChild(card);
+    });
+  }
+
+  // ---------- Orchestration ----------
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+
+    // Read form inputs
+    const city = (document.getElementById("city")?.value || "").trim();
+    const budget = (document.getElementById("budget")?.value || "").trim();
+    const days = Number((document.getElementById("days")?.value || "1").trim()) || 1;
+    const prefs = (document.getElementById("preferences")?.value || "").trim() || "general sightseeing";
+    const geminiKey = (document.getElementById("apiKey")?.value || "").trim();
+    const mboxKey = (document.getElementById("mapboxKey")?.value || "").trim();
+
+    if (!geminiKey) { setStatus("Please paste your Gemini API key.", true); return; }
+    if (!mboxKey) { setStatus("Please paste your Mapbox API key.", true); return; }
+
+    // Disable form UI while processing
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Generating…";
+    setStatus("Generating itinerary from Gemini…");
+
+    // Prepare prompts
+    const systemInstr = `You are an expert travel planner. Be concise and produce clean JSON.`;
+    const userPrompt = buildJSONPrompt(city, budget, days, prefs);
+
+    try {
+      // Step 1 - generate JSON
+      const text1 = await callGemini(geminiKey, systemInstr, userPrompt);
+      let parsed1;
+      try { parsed1 = safeParseJSON(text1); }
+      catch (e) {
+        // If first parse fails, include raw response in error for debugging
+        throw new Error("Gemini output not valid JSON. Response excerpt: " + (text1.slice(0, 800)));
+      }
+
+      // Step 2 - refine/validate JSON with Gemini (optional but safer)
+      setStatus("Validating & refining itinerary JSON…");
+      const refinePrompt = buildRefinePrompt(JSON.stringify(parsed1, null, 2));
+      const text2 = await callGemini(geminiKey, "You are a strict JSON validator.", refinePrompt);
+      const finalObj = validateSchema(safeParseJSON(text2));
+
+      // Render cards
+      renderItineraryCards(finalObj);
+
+      // Prepare map
+      setStatus("Preparing map & geocoding places…");
+      ensureMap(mboxKey, undefined, 5); // initialize map if needed
+
+      // Clear previous markers
+      clearMarkers();
+
+      // Collect map queries: activities + dining
+      const mapItems = [];
+      finalObj.days.forEach(d => {
+        d.activities.forEach(a => mapItems.push({ title: a.place, query: a.map_query, type: "activity" }));
+        d.dining.forEach(r => mapItems.push({ title: r.restaurant, query: r.map_query, type: "dining" }));
+      });
+
+      let placed = 0;
+      for (const it of mapItems) {
+        try {
+          const geo = await geocodeMapbox(it.query);
+          await sleep(GEOCODE_DELAY_MS);
+          if (geo) {
+            const color = (it.type === "dining") ? "#60a5fa" : "#ff6b6b";
+            addMarkerToMap(geo.lat, geo.lng, it.title, geo.label, color);
+            placed++;
+          } else {
+            console.warn("No geocode result for", it.query);
+          }
+        } catch (geErr) {
+          console.warn("Geocode failed", it.query, geErr);
+        }
+      }
+
+      if (placed === 0) setStatus("No pins placed (geocoding returned no results).", false);
+      else setStatus(`Placed ${placed} pins on the map.`, false);
+
+      // Fit map to markers
+      if (markerList.length > 0 && map) {
+        const bounds = new mapboxgl.LngLatBounds();
+        markerList.forEach(mk => bounds.extend(mk.getLngLat ? mk.getLngLat() : mk.getPopup().getLngLat()));
+        try { map.fitBounds(bounds, { padding: 40, maxZoom: 15 }); } catch (e) { /* ignore */ }
+      }
+
+    } catch (err) {
+      console.error(err);
+      setStatus(err.message || "An error occurred", true);
+      resultsEl.insertBefore(el("div", "day-card", `<strong>Error:</strong><div style="color:#ffdada">${escapeHTML(err.message || String(err))}</div>`), resultsEl.firstChild);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Generate Itinerary";
+    }
+
+  }); // end submit handler
+
+  // Expose a debug helper (optional)
+  window.__ai_itinerary_clear = () => {
+    clearMarkers();
+    resultsEl.innerHTML = "";
+    clearStatus();
+  };
+
+})();
