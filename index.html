@@ -1,121 +1,162 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>AI Travel Itinerary — Luxury Planner</title>
-  <meta name="description" content="Generate pro travel itineraries with AI and see recommended spots on an interactive map. Netlify-ready." />
-
-  <!-- Google font -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
-
-  <!-- Mapbox CSS (map UI) -->
-  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
-
-  <!-- Your custom styles -->
-  <link rel="stylesheet" href="style.css" />
-  <!-- Small inline safety styles to avoid FOUC -->
-  <style>
-    html { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial; }
-    #map { min-height: 380px; height: 100%; border-radius: 18px; overflow: hidden; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌍 Travel Planner Pro</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.9.2/mapbox-gl.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="app-bg">
-
-  <!-- ===== Header ===== -->
-  <header class="site-header">
-    <div class="container header-inner">
-      <div class="brand">
-        <div class="logo">🧭</div>
-        <div>
-          <div class="brand-title">AI Trip Planner</div>
-          <div class="brand-sub">Plan smarter · Travel better</div>
-        </div>
-      </div>
-
-      <nav class="nav-right" aria-hidden="true">
-        <a class="cta" href="#how">How it works</a>
-      </nav>
+<body class="bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900 min-h-screen font-sans overflow-x-hidden">
+    <!-- Background Animation -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500 rounded-full opacity-10 animate-pulse"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500 rounded-full opacity-15 animate-bounce"></div>
+        <div class="absolute top-1/3 right-1/3 w-64 h-64 bg-indigo-500 rounded-full opacity-20 animate-ping"></div>
+        <div class="stars"></div>
+        <div class="twinkling"></div>
     </div>
-  </header>
 
-  <!-- ===== Hero / Form Area ===== -->
-  <main class="container main-grid" role="main">
-    <section class="hero">
-      <h1 class="hero-title">Plan smarter, travel better ✨</h1>
-      <p class="hero-lead">Enter city, budget and preferences — our AI crafts a compact, actionable itinerary with map pins and dining suggestions.</p>
-
-      <!-- Form card -->
-      <form id="tripForm" class="card form-card" autocomplete="off" aria-label="Trip planning form">
-        <div class="form-grid">
-          <label class="field">
-            <span class="label">City</span>
-            <input id="city" name="city" type="text" placeholder="e.g., Faridabad" required />
-          </label>
-
-          <label class="field">
-            <span class="label">Budget (INR)</span>
-            <input id="budget" name="budget" type="number" placeholder="e.g., 20000" required />
-          </label>
-
-          <label class="field">
-            <span class="label">Number of days</span>
-            <input id="days" name="days" type="number" min="1" max="14" value="3" required />
-          </label>
-
-          <label class="field">
-            <span class="label">Preferences</span>
-            <input id="preferences" name="preferences" type="text" placeholder="e.g., relaxed, food, culture" />
-          </label>
+    <div class="relative z-10 container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Animated Header -->
+        <div class="text-center mb-16 transform transition-all duration-1000 animate__animated animate__fadeInDown">
+            <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mb-6 animate-pulse shadow-2xl">
+                <i class="fas fa-globe-americas text-3xl text-white"></i>
+            </div>
+            <h1 class="text-6xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-4">
+                Travel Planner Pro
+            </h1>
+            <p class="text-blue-100 text-xl max-w-3xl mx-auto leading-relaxed mb-6">
+                Craft your dream vacation with AI-powered precision and immersive mapping
+            </p>
+            <div class="inline-flex space-x-2">
+                <span class="w-3 h-3 bg-blue-400 rounded-full animate-bounce"></span>
+                <span class="w-3 h-3 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+                <span class="w-3 h-3 bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></span>
+            </div>
         </div>
 
-        <div class="form-actions">
-          <button id="generateBtn" type="submit" class="btn-primary">Generate Itinerary</button>
-          <button id="clearBtn" type="button" class="btn-ghost">Clear</button>
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
+            <!-- Input Form -->
+            <div class="glass rounded-3xl p-8 shadow-2xl transform hover:scale-105 transition-all duration-500">
+                <h2 class="text-3xl font-bold text-white mb-6 flex items-center">
+                    <i class="fas fa-pencil-alt text-blue-300 mr-3"></i>
+                    Plan Your Adventure
+                </h2>
+                
+                <form id="travel-form" class="space-y-6">
+                    <div class="form-group">
+                        <label class="block text-blue-200 font-semibold mb-3 flex items-center">
+                            <i class="fas fa-city text-blue-300 mr-2"></i>
+                            Dream Destination
+                        </label>
+                        <div class="relative">
+                            <i class="fas fa-map-marker-alt absolute left-4 top-4 text-blue-300"></i>
+                            <input type="text" id="city" placeholder="Where do you want to go? (e.g., Paris, Tokyo, Bali)" 
+                                   class="w-full pl-12 pr-4 py-4 bg-blue-800/50 border-2 border-blue-600/30 rounded-2xl text-white placeholder-blue-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-400 transition-all duration-300">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="form-group">
+                            <label class="block text-blue-200 font-semibold mb-3 flex items-center">
+                                <i class="fas fa-wallet text-green-300 mr-2"></i>
+                                Total Budget (₹)
+                            </label>
+                            <div class="relative">
+                                <i class="fas fa-rupee-sign absolute left-4 top-4 text-blue-300"></i>
+                                <input type="number" id="budget" placeholder="50,000" 
+                                       class="w-full pl-12 pr-4 py-4 bg-blue-800/50 border-2 border-blue-600/30 rounded-2xl text-white placeholder-blue-300 focus:border-green-400 focus:ring-2 focus:ring-green-400 transition-all duration-300">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="block text-blue-200 font-semibold mb-3 flex items-center">
+                                <i class="fas fa-calendar-day text-orange-300 mr-2"></i>
+                                Trip Duration
+                            </label>
+                            <div class="relative">
+                                <i class="fas fa-clock absolute left-4 top-4 text-blue-300"></i>
+                                <input type="number" id="days" placeholder="7 days" 
+                                       class="w-full pl-12 pr-4 py-4 bg-blue-800/50 border-2 border-blue-600/30 rounded-2xl text-white placeholder-blue-300 focus:border-orange-400 focus:ring-2 focus:ring-orange-400 transition-all duration-300">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="block text-blue-200 font-semibold mb-3 flex items-center">
+                            <i class="fas fa-heart text-red-300 mr-2"></i>
+                            Travel Preferences
+                        </label>
+                        <div class="relative">
+                            <i class="fas fa-star absolute left-4 top-4 text-blue-300"></i>
+                            <textarea id="preferences" placeholder="Adventure 🏔️, Luxury 🏨, Food 🍜, Culture 🎭..." 
+                                      class="w-full pl-12 pr-4 py-4 bg-blue-800/50 border-2 border-blue-600/30 rounded-2xl text-white placeholder-blue-300 focus:border-red-400 focus:ring-2 focus:ring-red-400 transition-all duration-300 resize-none"
+                                      rows="3"></textarea>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="submit-btn" class="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-5 px-8 rounded-2xl transform transition-all duration-300 hover:scale-105 hover:shadow-2xl shadow-lg group btn-pulse">
+                        <i class="fas fa-wand-magic-sparkles group-hover:rotate-180 transition-transform duration-700 mr-3"></i>
+                        Create Magic Itinerary
+                        <i class="fas fa-arrow-right group-hover:translate-x-2 transition-transform duration-300 ml-3"></i>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Preview Map -->
+            <div class="glass rounded-3xl p-8 shadow-2xl">
+                <h2 class="text-3xl font-bold text-white mb-6 flex items-center">
+                    <i class="fas fa-map-marked-alt text-green-300 mr-3"></i>
+                    Destination Preview
+                </h2>
+                <div id="preview-map" class="h-96 rounded-2xl overflow-hidden border-2 border-blue-600/30">
+                    <div class="w-full h-full flex items-center justify-center bg-blue-900/50">
+                        <i class="fas fa-globe-americas text-4xl text-blue-300 animate-spin"></i>
+                    </div>
+                </div>
+                <p class="text-blue-200 text-center mt-4">Enter a destination to see it on the map</p>
+            </div>
         </div>
 
-        <p class="muted">Note: You do <strong>not</strong> paste your Gemini secret key here. The app calls Gemini via a protected Netlify serverless function (keys stored in Netlify environment variables).</p>
-      </form>
-    </section>
-
-    <!-- ===== Results + Map ===== -->
-    <aside class="right-column">
-      <div id="results" class="stack" aria-live="polite">
-        <!-- Summary card + day cards will be injected here by script.js -->
-      </div>
-
-      <div class="map-card card">
-        <div class="map-header">
-          <h3>Interactive Map</h3>
-          <div id="map-status" class="muted">Map ready — pins appear after generation.</div>
+        <!-- Loading Animation -->
+        <div id="loading" class="hidden text-center mb-16">
+            <div class="inline-flex flex-col items-center">
+                <div class="orbit-spinner mb-6">
+                    <div class="orbit"></div>
+                    <div class="orbit"></div>
+                    <div class="orbit"></div>
+                </div>
+                <p class="text-blue-200 text-xl font-semibold animate-pulse">Creating your personalized travel experience...</p>
+                <div class="loading-dots mt-4">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
         </div>
-        <div id="map" role="application" aria-label="Map with itinerary pins"></div>
-      </div>
-    </aside>
-  </main>
 
-  <!-- ===== Footer ===== -->
-  <footer class="site-footer">
-    <div class="container">
-      <div class="foot-left">© <strong>AI Trip Planner</strong> · Built with Gemini & Mapbox</div>
-      <div class="foot-right muted">Deployed to Netlify • Keys kept secure server-side</div>
+        <!-- Output Section -->
+        <div id="output" class="hidden space-y-8">
+            <!-- Results will be populated here -->
+        </div>
+
+        <!-- Error Message -->
+        <div id="error" class="hidden glass rounded-3xl p-8 text-center mb-8 border-2 border-red-500/30">
+            <i class="fas fa-exclamation-triangle text-red-300 text-4xl mb-4"></i>
+            <p id="error-message" class="text-red-200 font-semibold text-lg"></p>
+        </div>
     </div>
-  </footer>
 
-  <!-- ===== Scripts ===== -->
-  <!-- Mapbox JS -->
-  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <!-- Footer -->
+    <footer class="relative z-10 text-center py-8 text-blue-300">
+        <p>Powered by Google AI Studio & Mapbox | Travel Planner Pro ✨</p>
+    </footer>
 
-  <!-- Your app logic -->
-  <!-- Replace script.js with the file I'll provide next. It reads no secret Gemini key from frontend. -->
-  <script src="script.js"></script>
-
-  <!-- Small accessibility helper: focus first input on load -->
-  <script>
-    window.addEventListener('load', () => {
-      const c = document.getElementById('city');
-      if (c) c.focus({preventScroll:true});
-    });
-  </script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.9.2/mapbox-gl.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
