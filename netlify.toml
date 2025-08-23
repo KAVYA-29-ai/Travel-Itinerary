@@ -1,8 +1,7 @@
 [build]
-  publish = "./"
-  command = ""
+  publish = "."
 
-# Optional: force pretty URLs without .html
+# Redirect all routes to index.html (SPA fallback)
 [[redirects]]
   from = "/*"
   to = "/index.html"
