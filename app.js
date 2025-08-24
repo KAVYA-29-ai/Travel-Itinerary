@@ -7,19 +7,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const debugDiv = document.getElementById("debug-info");
   const mapPreview = document.getElementById("preview-map");
 
-  let map, marker;
+  let map, markers = [];
 
-  // Fetch Mapbox token
-  let mapboxToken = "";
-  try {
-    const res = await fetch("/.netlify/functions/get-mapbox-token");
-    const data = await res.json();
-    mapboxToken = data.token;
-  } catch (err) {
-    console.error("Failed to fetch Mapbox token:", err);
-  }
-
-  mapboxgl.accessToken = mapboxToken;
+  // Initialize Mapbox
+  mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN; // From your env
   map = new mapboxgl.Map({
     container: 'preview-map',
     style: 'mapbox://styles/mapbox/streets-v12',
@@ -33,8 +24,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     setTimeout(() => { errorDiv.style.display = "none"; }, 5000);
   }
 
+  function clearMarkers() {
+    markers.forEach(m => m.remove());
+    markers = [];
+  }
+
+  function addMarker(lat, lng, popupText) {
+    const popup = new mapboxgl.Popup({ offset: 25 }).setText(popupText);
+    const marker = new mapboxgl.Marker().setLngLat([lng, lat]).setPopup(popup).addTo(map);
+    markers.push(marker);
+  }
+
   function displayTrip(trip) {
     outputDiv.style.display = "block";
+
     outputDiv.innerHTML = `
       <div class="glass rounded-3xl p-8 shadow-2xl mb-8 slide-in">
         <h2 class="text-3xl font-bold text-white mb-4">Trip Summary</h2>
@@ -46,9 +49,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         <h2 class="text-3xl font-bold text-white mb-4">Recommended Hotels</h2>
         ${trip.hotels.map(hotel => `
           <div class="mb-4 p-4 glass card-hover">
-            <h3 class="text-xl font-semibold text-white">${hotel.name} - ₹${hotel.pricePerNight}/night</h3>
+            <h3 class="text-xl font-semibold text-white">${hotel.name} - ₹${hotel.cost}</h3>
             <p class="text-blue-100">${hotel.description}</p>
-            <p class="text-blue-200 font-semibold mt-1">Rating: ${hotel.rating} ⭐ | ${hotel.distanceFromCenter}</p>
           </div>
         `).join('')}
       </div>
@@ -57,25 +59,30 @@ document.addEventListener("DOMContentLoaded", async () => {
         <h2 class="text-3xl font-bold text-white mb-4">Day by Day Itinerary</h2>
         ${trip.itinerary.map(day => `
           <div class="mb-6 p-4 glass card-hover">
-            <h3 class="text-xl font-semibold text-white mb-2">Day ${day.day} - ₹${day.dailyCost}</h3>
+            <h3 class="text-xl font-semibold text-white mb-2">Day ${day.day}</h3>
             <ul class="list-disc list-inside text-blue-100">
-              <li>🌞 Morning: ${day.morning.activity} - ₹${day.morning.cost}</li>
-              <li>🍴 Lunch/Afternoon: ${day.afternoon.activity} - ₹${day.afternoon.cost}</li>
-              <li>🌆 Evening: ${day.evening.activity} - ₹${day.evening.cost}</li>
-              <li>🍽 Dining: ${day.dining.restaurant} (${day.dining.cuisine}) - ₹${day.dining.cost}</li>
-              <li>🏨 Stay: ${day.hotel.name} - ₹${day.hotel.price}</li>
+              ${day.activities.map(act => `<li>${act.type}: ${act.name} - ₹${act.cost}</li>`).join('')}
             </ul>
           </div>
         `).join('')}
       </div>
     `;
 
-    // Map marker
+    // Map: Clear old markers
+    clearMarkers();
+
+    // Add POIs markers
+    trip.itinerary.forEach(day => {
+      day.activities.forEach(act => addMarker(act.lat, act.lng, `${act.name} (${act.type}) - ₹${act.cost}`));
+    });
+
+    // Add Hotels markers
+    trip.hotels.forEach(hotel => addMarker(hotel.lat, hotel.lng, `${hotel.name} - ₹${hotel.cost}`));
+
+    // Fly to city center
     if (trip.cityCoordinates) {
       const [lng, lat] = trip.cityCoordinates;
       map.flyTo({ center: [lng, lat], zoom: 10 });
-      if (marker) marker.remove();
-      marker = new mapboxgl.Marker().setLngLat([lng, lat]).addTo(map);
     }
   }
 
@@ -109,27 +116,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (err) {
       showError(err.message);
       debugDiv.textContent = err.message;
-
-      // Fallback with detailed pricing
-      const fallbackTrip = {
-        summary: `${days}-day trip to ${city} with full breakdown`,
-        totalCost: budget,
-        cityCoordinates: city.toLowerCase() === "paris" ? [2.3522, 48.8566] : [77.2090, 28.6139],
-        hotels: [
-          { name: "Luxury Palace Hotel", pricePerNight: Math.floor(budget/2), description: "5-star hotel with pool", rating: 4.7, distanceFromCenter: "1.5 km from center" },
-          { name: "Mid-range Comfort Inn", pricePerNight: Math.floor(budget/3), description: "Comfortable & cozy", rating: 4.2, distanceFromCenter: "2.8 km from center" }
-        ],
-        itinerary: Array.from({ length: days }, (_, i) => ({
-          day: i+1,
-          dailyCost: Math.floor(budget/days),
-          morning: { activity: `Visit famous landmarks of ${city}`, cost: Math.floor(budget/days/4) },
-          afternoon: { activity: "Enjoy local cuisine", cost: Math.floor(budget/days/5) },
-          evening: { activity: "Evening entertainment", cost: Math.floor(budget/days/4) },
-          dining: { restaurant: "Authentic Local Restaurant", cuisine: "Local Specialties", cost: Math.floor(budget/days/6) },
-          hotel: { name: i % 2 === 0 ? "Luxury Palace Hotel" : "Mid-range Comfort Inn", price: i % 2 === 0 ? Math.floor(budget/days/2) : Math.floor(budget/days/3) }
-        }))
-      };
-      displayTrip(fallbackTrip);
     } finally {
       loadingDiv.classList.add("hidden");
     }
