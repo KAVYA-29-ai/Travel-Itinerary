@@ -9,12 +9,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let map, markers = [];
 
-  // Initialize Mapbox
-  mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN; // From your env
+  // Fetch Mapbox token
+  let mapboxToken = "";
+  try {
+    const res = await fetch("/.netlify/functions/get-mapbox-token");
+    const data = await res.json();
+    mapboxToken = data.token;
+  } catch (err) {
+    console.error("Failed to fetch Mapbox token:", err);
+  }
+
+  mapboxgl.accessToken = mapboxToken;
   map = new mapboxgl.Map({
     container: 'preview-map',
     style: 'mapbox://styles/mapbox/streets-v12',
-    center: [77.2090, 28.6139],
+    center: [77.209, 28.6139],
     zoom: 4
   });
 
@@ -29,15 +38,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     markers = [];
   }
 
-  function addMarker(lat, lng, popupText) {
-    const popup = new mapboxgl.Popup({ offset: 25 }).setText(popupText);
-    const marker = new mapboxgl.Marker().setLngLat([lng, lat]).setPopup(popup).addTo(map);
+  function addMarker(lng, lat, type, info) {
+    const el = document.createElement('div');
+    el.className = 'marker';
+    el.style.width = '32px';
+    el.style.height = '32px';
+    el.style.backgroundSize = 'cover';
+    el.style.borderRadius = '50%';
+    if(type === 'hotel') el.style.backgroundImage = 'url(https://i.imgur.com/6z4hXcG.png)';
+    else if(type === 'landmark') el.style.backgroundImage = 'url(https://i.imgur.com/oevjqFz.png)';
+    else if(type === 'restaurant') el.style.backgroundImage = 'url(https://i.imgur.com/3XgOIR2.png)';
+
+    const marker = new mapboxgl.Marker(el)
+      .setLngLat([lng, lat])
+      .setPopup(new mapboxgl.Popup({ offset: 25 })
+      .setHTML(info))
+      .addTo(map);
     markers.push(marker);
   }
 
   function displayTrip(trip) {
     outputDiv.style.display = "block";
-
     outputDiv.innerHTML = `
       <div class="glass rounded-3xl p-8 shadow-2xl mb-8 slide-in">
         <h2 class="text-3xl font-bold text-white mb-4">Trip Summary</h2>
@@ -49,8 +70,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         <h2 class="text-3xl font-bold text-white mb-4">Recommended Hotels</h2>
         ${trip.hotels.map(hotel => `
           <div class="mb-4 p-4 glass card-hover">
-            <h3 class="text-xl font-semibold text-white">${hotel.name} - ₹${hotel.cost}</h3>
+            <h3 class="text-xl font-semibold text-white">${hotel.name} - ₹${hotel.pricePerNight}/night</h3>
             <p class="text-blue-100">${hotel.description}</p>
+            <p class="text-blue-200 font-semibold mt-1">Rating: ${hotel.rating} ⭐ | ${hotel.distanceFromCenter}</p>
           </div>
         `).join('')}
       </div>
@@ -59,45 +81,50 @@ document.addEventListener("DOMContentLoaded", async () => {
         <h2 class="text-3xl font-bold text-white mb-4">Day by Day Itinerary</h2>
         ${trip.itinerary.map(day => `
           <div class="mb-6 p-4 glass card-hover">
-            <h3 class="text-xl font-semibold text-white mb-2">Day ${day.day}</h3>
+            <h3 class="text-xl font-semibold text-white mb-2">Day ${day.day} - ₹${day.dailyCost}</h3>
             <ul class="list-disc list-inside text-blue-100">
-              ${day.activities.map(act => `<li>${act.type}: ${act.name} - ₹${act.cost}</li>`).join('')}
+              <li>🌞 Morning: ${day.morning.activity} - ₹${day.morning.cost}</li>
+              <li>🍴 Lunch/Afternoon: ${day.afternoon.activity} - ₹${day.afternoon.cost}</li>
+              <li>🌆 Evening: ${day.evening.activity} - ₹${day.evening.cost}</li>
+              <li>🍽 Dining: ${day.dining.restaurant} (${day.dining.cuisine}) - ₹${day.dining.cost}</li>
+              <li>🏨 Stay: ${day.hotel.name} - ₹${day.hotel.price}</li>
             </ul>
           </div>
         `).join('')}
       </div>
     `;
 
-    // Map: Clear old markers
-    clearMarkers();
-
-    // Add POIs markers
-    trip.itinerary.forEach(day => {
-      day.activities.forEach(act => addMarker(act.lat, act.lng, `${act.name} (${act.type}) - ₹${act.cost}`));
-    });
-
-    // Add Hotels markers
-    trip.hotels.forEach(hotel => addMarker(hotel.lat, hotel.lng, `${hotel.name} - ₹${hotel.cost}`));
-
-    // Fly to city center
+    // Map markers
     if (trip.cityCoordinates) {
       const [lng, lat] = trip.cityCoordinates;
-      map.flyTo({ center: [lng, lat], zoom: 10 });
+      map.flyTo({ center: [lng, lat], zoom: 12 });
+      clearMarkers();
+
+      // Landmarks
+      trip.landmarks.forEach(l => {
+        addMarker(l.lng, l.lat, 'landmark', `<strong>${l.name}</strong><br>${l.type}`);
+      });
+
+      // Hotels
+      trip.hotels.forEach(h => {
+        addMarker(h.lng, h.lat, 'hotel', `<strong>${h.name}</strong><br>₹${h.pricePerNight}/night`);
+      });
+
+      // Restaurants
+      trip.restaurants.forEach(r => {
+        addMarker(r.lng, r.lat, 'restaurant', `<strong>${r.name}</strong><br>${r.cuisine}`);
+      });
     }
   }
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-
     const city = document.getElementById("city").value.trim();
     const budget = parseInt(document.getElementById("budget").value.trim());
     const days = parseInt(document.getElementById("days").value.trim());
     const preferences = document.getElementById("preferences").value.trim();
 
-    if (!city || !budget || !days) {
-      showError("Please fill all required fields!");
-      return;
-    }
+    if (!city || !budget || !days) { showError("Please fill all required fields!"); return; }
 
     loadingDiv.classList.remove("hidden");
     outputDiv.style.display = "none";
@@ -108,11 +135,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ city, budget, days, preferences })
       });
-
       if (!response.ok) throw new Error("Failed to generate itinerary!");
       const trip = await response.json();
       displayTrip(trip);
-
     } catch (err) {
       showError(err.message);
       debugDiv.textContent = err.message;
