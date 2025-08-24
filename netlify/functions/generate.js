@@ -1,4 +1,3 @@
-// netlify/functions/generate.js
 import fetch from "node-fetch";
 
 export const handler = async (event, context) => {
@@ -10,50 +9,72 @@ export const handler = async (event, context) => {
     const { city, budget, days, preferences } = JSON.parse(event.body);
     if (!city || !budget || !days) throw new Error("Missing required fields");
 
-    // 1️⃣ Get coordinates from Mapbox
-    let coordinates = [77.2090, 28.6139]; // default Delhi
-    try {
-      const geoRes = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(city)}.json?access_token=${process.env.MAPBOX_ACCESS_TOKEN}&limit=1`);
-      const geoData = await geoRes.json();
-      if (geoData?.features?.[0]?.center) {
-        coordinates = geoData.features[0].center; // [lng, lat]
-      }
-    } catch(err) {
-      console.error("Mapbox geocoding failed:", err.message);
-    }
+    let coordinates = [0, 0];
 
-    // 2️⃣ Call Google AI Studio
-    let itineraryAI = [];
+    // 1️⃣ Ask Google AI Studio / Gemini for coordinates
     try {
-      const aiResponse = await fetch("https://generativeai.googleapis.com/v1beta2/models/text-bison-001:generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.GOOGLE_AI_API_KEY}`
-        },
-        body: JSON.stringify({
-          prompt: `Create a detailed ${days}-day itinerary for ${city} with budget ₹${budget}. Include morning, afternoon, evening, dining, hotel. Travel preferences: ${preferences || "general"}.`,
-          temperature: 0.7,
-          maxOutputTokens: 800
-        })
-      });
+      const aiResponse = await fetch(
+        "https://generativeai.googleapis.com/v1beta2/models/text-bison-001:generate",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${process.env.GOOGLE_AI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            prompt: `Provide the exact latitude and longitude of "${city}" in JSON format as {"lat": ..., "lng": ...}.`,
+            temperature: 0,
+            maxOutputTokens: 50,
+          }),
+        }
+      );
+
       const aiData = await aiResponse.json();
       const text = aiData?.candidates?.[0]?.content || "";
-      itineraryAI = text.split("\n").filter(l => l.trim() !== "");
+      const jsonMatch = text.match(/\{.*\}/s);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        coordinates = [parsed.lng, parsed.lat];
+      }
     } catch (err) {
-      console.error("Google AI failed, using fallback:", err.message);
+      console.error("AI coordinate fetch failed:", err.message);
     }
 
-    // 3️⃣ Fallback if AI fails
+    // 2️⃣ Ask AI for itinerary
+    let itineraryAI = [];
+    try {
+      const aiItinerary = await fetch(
+        "https://generativeai.googleapis.com/v1beta2/models/text-bison-001:generate",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${process.env.GOOGLE_AI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            prompt: `Create a detailed ${days}-day itinerary for ${city} with budget ₹${budget}. Include morning, afternoon, evening, dining, and hotel. Travel preferences: ${preferences || "general"}.`,
+            temperature: 0.7,
+            maxOutputTokens: 800,
+          }),
+        }
+      );
+      const itineraryData = await aiItinerary.json();
+      const text = itineraryData?.candidates?.[0]?.content || "";
+      itineraryAI = text.split("\n").filter(l => l.trim() !== "");
+    } catch (err) {
+      console.error("AI itinerary fetch failed:", err.message);
+    }
+
+    // 3️⃣ Fallback
     if (itineraryAI.length === 0) {
       const dailyBudget = Math.floor(budget / days);
       itineraryAI = Array.from({ length: days }, (_, i) => {
         return `Day ${i + 1} - ₹${dailyBudget}
-🌞 Morning: Visit famous landmarks of ${city} - ₹${Math.floor(dailyBudget/4)}
+🌞 Morning: Visit landmarks of ${city} - ₹${Math.floor(dailyBudget/4)}
 🍴 Lunch/Afternoon: Enjoy local cuisine - ₹${Math.floor(dailyBudget/5)}
-🌆 Evening: Evening entertainment - ₹${Math.floor(dailyBudget/4)}
+🌆 Evening: Entertainment - ₹${Math.floor(dailyBudget/4)}
 🍽 Dining: Local Restaurant - ₹${Math.floor(dailyBudget/6)}
-🏨 Stay: Local Stay - ₹${Math.floor(dailyBudget/2)}`;
+🏨 Stay: Hotel - ₹${Math.floor(dailyBudget/2)}`;
       });
     }
 
@@ -65,43 +86,13 @@ export const handler = async (event, context) => {
         totalCost: parseInt(budget),
         cityCoordinates: coordinates,
         itinerary: itineraryAI
-      })
+      }),
     };
-
   } catch (err) {
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-      body: JSON.stringify({ error: err.message })
-    };
-  }
-};
-   cityCoordinates: coordinates,
-      itinerary: itineraryAI
-    };
-
-    return {
-      statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type"
-      },
-      body: JSON.stringify(response)
-    };
-    
-  } catch (error) {
-    return {
-      statusCode: 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type"
-      },
-      body: JSON.stringify({
-        error: "Failed to generate itinerary",
-        details: error.message
-      })
+      body: JSON.stringify({ error: "Failed to generate itinerary", details: err.message }),
     };
   }
 };
