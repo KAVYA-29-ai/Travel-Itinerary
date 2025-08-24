@@ -1,3 +1,4 @@
+// app.js
 document.addEventListener("DOMContentLoaded", async () => {
   const form = document.getElementById("travel-form");
   const outputDiv = document.getElementById("output");
@@ -9,10 +10,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let map, marker;
 
-  // Fetch Mapbox token dynamically
+  // Fetch Mapbox token dynamically from get-mapbox-token.js
   let mapboxToken = "";
   try {
-    const res = await fetch("/.netlify/functions/get-maps");
+    const res = await fetch("/.netlify/functions/get-mapbox-token");
     const data = await res.json();
     mapboxToken = data.token;
   } catch (err) {
@@ -66,6 +67,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       </div>
     `;
 
+    // Update Mapbox marker
     if (trip.cityCoordinates) {
       const [lng, lat] = trip.cityCoordinates;
       map.flyTo({ center: [lng, lat], zoom: 10 });
@@ -105,7 +107,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       showError(err.message);
       debugDiv.textContent = err.message;
 
-      // fallback
+      // fallback mock trip
       const fallbackTrip = {
         summary: `${days}-day trip to ${city}`,
         totalCost: budget,
