@@ -1,17 +1,4 @@
-let CITY_COORDINATES = {};
-
-async function loadCityCoordinates() {
-  try {
-    const res = await fetch("/cities.json");
-    CITY_COORDINATES = await res.json();
-  } catch (err) {
-    console.error("Failed to load cities.json:", err);
-  }
-}
-
 document.addEventListener("DOMContentLoaded", async () => {
-  await loadCityCoordinates();
-
   const form = document.getElementById("travel-form");
   const outputDiv = document.getElementById("output");
   const errorDiv = document.getElementById("error");
@@ -22,6 +9,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let map, marker;
 
+  // Mapbox token
   let mapboxToken = "";
   try {
     const res = await fetch("/.netlify/functions/get-mapbox-token");
@@ -35,7 +23,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   map = new mapboxgl.Map({
     container: "preview-map",
     style: "mapbox://styles/mapbox/streets-v12",
-    center: [0, 0],
+    center: [0,0],
     zoom: 2
   });
 
@@ -70,7 +58,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const city = document.getElementById("city").value.trim().toLowerCase();
+    const city = document.getElementById("city").value.trim();
     const budget = parseInt(document.getElementById("budget").value.trim());
     const days = parseInt(document.getElementById("days").value.trim());
     const preferences = document.getElementById("preferences").value.trim();
@@ -89,19 +77,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ city, budget, days, preferences })
       });
+
       if (!response.ok) throw new Error("Failed to generate itinerary!");
       const trip = await response.json();
-
-      // Assign coordinates from cities.json
-      let coords = [0, 0];
-      for (const country in CITY_COORDINATES) {
-        if (CITY_COORDINATES[country][city]) {
-          coords = CITY_COORDINATES[country][city];
-          break;
-        }
-      }
-      trip.cityCoordinates = coords;
-
       displayTrip(trip);
 
     } catch (err) {
