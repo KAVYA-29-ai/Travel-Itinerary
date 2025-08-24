@@ -1,4 +1,17 @@
+let CITY_COORDINATES = {};
+
+async function loadCityCoordinates() {
+  try {
+    const res = await fetch("/cities.json");
+    CITY_COORDINATES = await res.json();
+  } catch (err) {
+    console.error("Failed to load cities.json:", err);
+  }
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
+  await loadCityCoordinates();
+
   const form = document.getElementById("travel-form");
   const outputDiv = document.getElementById("output");
   const errorDiv = document.getElementById("error");
@@ -9,7 +22,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let map, marker;
 
-  // Fetch Mapbox token
   let mapboxToken = "";
   try {
     const res = await fetch("/.netlify/functions/get-mapbox-token");
@@ -21,38 +33,32 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   mapboxgl.accessToken = mapboxToken;
   map = new mapboxgl.Map({
-    container: 'preview-map',
-    style: 'mapbox://styles/mapbox/streets-v12',
-    center: [77.2090, 28.6139], // Default Delhi
-    zoom: 4
+    container: "preview-map",
+    style: "mapbox://styles/mapbox/streets-v12",
+    center: [0, 0],
+    zoom: 2
   });
 
-  function showError(message) {
+  function showError(msg) {
     errorDiv.style.display = "block";
-    errorMsg.textContent = message;
+    errorMsg.textContent = msg;
     setTimeout(() => { errorDiv.style.display = "none"; }, 5000);
   }
 
   function displayTrip(trip) {
     outputDiv.style.display = "block";
     outputDiv.innerHTML = `
-      <div class="glass rounded-3xl p-8 shadow-2xl mb-8 slide-in">
-        <h2 class="text-3xl font-bold text-white mb-4">Trip Summary</h2>
+      <div class="glass p-6 rounded-2xl">
+        <h2 class="text-white font-bold text-2xl mb-2">Trip Summary</h2>
         <p class="text-blue-100">${trip.summary}</p>
         <p class="text-blue-200 font-semibold mt-2">Estimated Cost: ₹${trip.totalCost}</p>
       </div>
-
-      <div class="glass rounded-3xl p-8 shadow-2xl mb-8 slide-in">
-        <h2 class="text-3xl font-bold text-white mb-4">Day by Day Itinerary</h2>
-        ${trip.itinerary.map(day => `
-          <div class="mb-6 p-4 glass card-hover">
-            <pre class="text-blue-100 whitespace-pre-wrap">${day}</pre>
-          </div>
-        `).join('')}
+      <div class="glass p-6 rounded-2xl mt-4">
+        <h2 class="text-white font-bold text-2xl mb-2">Day by Day Itinerary</h2>
+        ${trip.itinerary.map(day => `<pre class="text-blue-100 whitespace-pre-wrap">${day}</pre>`).join("")}
       </div>
     `;
 
-    // Map marker
     if (trip.cityCoordinates) {
       const [lng, lat] = trip.cityCoordinates;
       map.flyTo({ center: [lng, lat], zoom: 10 });
@@ -64,7 +70,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const city = document.getElementById("city").value.trim();
+    const city = document.getElementById("city").value.trim().toLowerCase();
     const budget = parseInt(document.getElementById("budget").value.trim());
     const days = parseInt(document.getElementById("days").value.trim());
     const preferences = document.getElementById("preferences").value.trim();
@@ -83,31 +89,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ city, budget, days, preferences })
       });
-
       if (!response.ok) throw new Error("Failed to generate itinerary!");
       const trip = await response.json();
+
+      // Assign coordinates from cities.json
+      let coords = [0, 0];
+      for (const country in CITY_COORDINATES) {
+        if (CITY_COORDINATES[country][city]) {
+          coords = CITY_COORDINATES[country][city];
+          break;
+        }
+      }
+      trip.cityCoordinates = coords;
+
       displayTrip(trip);
 
     } catch (err) {
       showError(err.message);
       debugDiv.textContent = err.message;
-
-      // Fallback itinerary
-      const dailyBudget = Math.floor(budget / days);
-      const fallbackTrip = {
-        summary: `${days}-day trip to ${city} with full breakdown`,
-        totalCost: budget,
-        cityCoordinates: [0, 0],
-        itinerary: Array.from({ length: days }, (_, i) => {
-          return `Day ${i + 1} - ₹${dailyBudget}
-🌞 Morning: Visit famous landmarks of ${city} - ₹${Math.floor(dailyBudget/4)}
-🍴 Lunch/Afternoon: Enjoy local cuisine - ₹${Math.floor(dailyBudget/5)}
-🌆 Evening: Evening entertainment - ₹${Math.floor(dailyBudget/4)}
-🍽 Dining: Authentic Local Restaurant (Local Specialties) - ₹${Math.floor(dailyBudget/6)}
-🏨 Stay: Local Stay - ₹${Math.floor(dailyBudget/2)}`;
-        })
-      };
-      displayTrip(fallbackTrip);
     } finally {
       loadingDiv.classList.add("hidden");
     }
