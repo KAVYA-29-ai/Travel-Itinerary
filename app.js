@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let map, marker;
 
-  // Mapbox token
+  // --- Fetch Mapbox token ---
   let mapboxToken = "";
   try {
     const res = await fetch("/.netlify/functions/get-mapbox-token");
@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   map = new mapboxgl.Map({
     container: "preview-map",
     style: "mapbox://styles/mapbox/streets-v12",
-    center: [0,0],
+    center: [0, 0],
     zoom: 2
   });
 
