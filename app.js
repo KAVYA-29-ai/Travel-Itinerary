@@ -1,6 +1,4 @@
-// app.js - Full Working Version with Mapbox
-
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   const form = document.getElementById("travel-form");
   const outputDiv = document.getElementById("output");
   const errorDiv = document.getElementById("error");
@@ -11,12 +9,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let map, marker;
 
+  // Fetch Mapbox token dynamically
+  let mapboxToken = "";
+  try {
+    const res = await fetch("/.netlify/functions/get-maps");
+    const data = await res.json();
+    mapboxToken = data.token;
+  } catch (err) {
+    console.error("Failed to fetch Mapbox token:", err);
+  }
+
   // Initialize Mapbox
-  mapboxgl.accessToken = 'YOUR_MAPBOX_ACCESS_TOKEN';
+  mapboxgl.accessToken = mapboxToken;
   map = new mapboxgl.Map({
     container: 'preview-map',
     style: 'mapbox://styles/mapbox/streets-v12',
-    center: [77.2090, 28.6139], // Default Delhi
+    center: [77.2090, 28.6139], // default Delhi
     zoom: 4
   });
 
@@ -27,39 +35,37 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function displayTrip(trip) {
-    // Show output
     outputDiv.style.display = "block";
     outputDiv.innerHTML = `
       <div class="glass rounded-3xl p-8 shadow-2xl">
         <h2 class="text-3xl font-bold text-white mb-4">Trip Summary</h2>
-        <p class="text-blue-100">${trip.summary || "No summary available"}</p>
-        <p class="text-blue-200 font-semibold mt-2">Estimated Cost: ₹${trip.totalCost || 0}</p>
+        <p class="text-blue-100">${trip.summary}</p>
+        <p class="text-blue-200 font-semibold mt-2">Estimated Cost: ₹${trip.totalCost}</p>
       </div>
 
       <div class="glass rounded-3xl p-8 shadow-2xl">
         <h2 class="text-3xl font-bold text-white mb-4">Recommended Hotels</h2>
-        ${Array.isArray(trip.hotels) && trip.hotels.length > 0 ? trip.hotels.map(hotel => `
+        ${trip.hotels.map(hotel => `
           <div class="mb-4">
-            <h3 class="text-xl font-semibold text-white">${hotel.name || "Unnamed Hotel"}</h3>
-            <p class="text-blue-100">${hotel.description || "No description available"}</p>
+            <h3 class="text-xl font-semibold text-white">${hotel.name}</h3>
+            <p class="text-blue-100">${hotel.description}</p>
           </div>
-        `).join('') : "<p class='text-blue-200'>No hotels recommended.</p>"}
+        `).join('')}
       </div>
 
       <div class="glass rounded-3xl p-8 shadow-2xl">
         <h2 class="text-3xl font-bold text-white mb-4">Day by Day Itinerary</h2>
-        ${Array.isArray(trip.itinerary) && trip.itinerary.length > 0 ? trip.itinerary.map(day => `
+        ${trip.itinerary.map(day => `
           <div class="mb-4">
-            <h3 class="text-xl font-semibold text-white">Day ${day.day || "?"}</h3>
+            <h3 class="text-xl font-semibold text-white">Day ${day.day}</h3>
             <ul class="list-disc list-inside text-blue-100">
-              ${(Array.isArray(day.activities) ? day.activities : []).map(act => `<li>${act}</li>`).join('')}
+              ${day.activities.map(act => `<li>${act}</li>`).join('')}
             </ul>
           </div>
-        `).join('') : "<p class='text-blue-200'>No itinerary available.</p>"}
+        `).join('')}
       </div>
     `;
 
-    // Update Mapbox marker
     if (trip.cityCoordinates) {
       const [lng, lat] = trip.cityCoordinates;
       map.flyTo({ center: [lng, lat], zoom: 10 });
@@ -81,7 +87,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Show loading
     loadingDiv.classList.remove("hidden");
     outputDiv.style.display = "none";
 
@@ -93,7 +98,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       if (!response.ok) throw new Error("Failed to generate itinerary!");
-
       const trip = await response.json();
       displayTrip(trip);
 
@@ -101,23 +105,25 @@ document.addEventListener("DOMContentLoaded", () => {
       showError(err.message);
       debugDiv.textContent = err.message;
 
-      // fallback mock data with coordinates for Mapbox
-      const mockTrip = {
-        city: city,
-        cityCoordinates: [77.2090, 28.6139], // Delhi default, change if needed
-        summary: `${days}-day adventure trip to ${city}`,
+      // fallback
+      const fallbackTrip = {
+        summary: `${days}-day trip to ${city}`,
         totalCost: budget,
+        cityCoordinates: city.toLowerCase() === "paris" ? [2.3522, 48.8566] : [77.2090, 28.6139],
         hotels: [
           { name: "Luxury Palace Hotel", description: "5-star hotel with pool" },
-          { name: "Mid-range Comfort Inn", description: "Affordable and cozy" }
+          { name: "Mid-range Comfort Inn", description: "Comfortable & cozy" }
         ],
-        itinerary: Array.from({ length: days }, (_, i) => ({
+        itinerary: Array.from({ length: parseInt(days) }, (_, i) => ({
           day: i + 1,
-          activities: ["Sample Activity 1", "Sample Activity 2"]
+          activities: [
+            `Visit landmarks in ${city}`,
+            "Enjoy local cuisine",
+            "Evening entertainment"
+          ]
         }))
       };
-
-      displayTrip(mockTrip);
+      displayTrip(fallbackTrip);
     } finally {
       loadingDiv.classList.add("hidden");
     }
