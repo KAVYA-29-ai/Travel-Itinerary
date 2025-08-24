@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let map, marker;
 
-  // Initialize Mapbox map
+  // Fetch Mapbox token
   let mapboxToken = "";
   try {
     const res = await fetch("/.netlify/functions/get-mapbox-token");
@@ -21,9 +21,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   mapboxgl.accessToken = mapboxToken;
   map = new mapboxgl.Map({
-    container: "preview-map",
-    style: "mapbox://styles/mapbox/streets-v12",
-    center: [77.209, 28.6139], // Default Delhi
+    container: 'preview-map',
+    style: 'mapbox://styles/mapbox/streets-v12',
+    center: [77.2090, 28.6139], // Default Delhi
     zoom: 4
   });
 
@@ -91,6 +91,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (err) {
       showError(err.message);
       debugDiv.textContent = err.message;
+
+      // Fallback itinerary
+      const dailyBudget = Math.floor(budget / days);
+      const fallbackTrip = {
+        summary: `${days}-day trip to ${city} with full breakdown`,
+        totalCost: budget,
+        cityCoordinates: [0, 0],
+        itinerary: Array.from({ length: days }, (_, i) => {
+          return `Day ${i + 1} - ₹${dailyBudget}
+🌞 Morning: Visit famous landmarks of ${city} - ₹${Math.floor(dailyBudget/4)}
+🍴 Lunch/Afternoon: Enjoy local cuisine - ₹${Math.floor(dailyBudget/5)}
+🌆 Evening: Evening entertainment - ₹${Math.floor(dailyBudget/4)}
+🍽 Dining: Authentic Local Restaurant (Local Specialties) - ₹${Math.floor(dailyBudget/6)}
+🏨 Stay: Local Stay - ₹${Math.floor(dailyBudget/2)}`;
+        })
+      };
+      displayTrip(fallbackTrip);
     } finally {
       loadingDiv.classList.add("hidden");
     }
