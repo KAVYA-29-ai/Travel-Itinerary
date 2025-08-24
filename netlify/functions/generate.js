@@ -1,7 +1,5 @@
-// netlify/functions/generate.js - SIMPLIFIED VERSION
+// netlify/functions/generate.js
 exports.handler = async function(event, context) {
-    console.log('Function called with:', event.body);
-    
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
@@ -11,70 +9,31 @@ exports.handler = async function(event, context) {
 
     try {
         const { city, budget, days, preferences } = JSON.parse(event.body);
-        
-        console.log('Generating itinerary for:', { city, budget, days, preferences });
 
-        // Mock response for testing
+        // Map coordinates fallback
+        let cityCoordinates;
+        switch(city.toLowerCase()) {
+            case "paris": cityCoordinates = [2.3522, 48.8566]; break;
+            case "delhi": cityCoordinates = [77.2090, 28.6139]; break;
+            default: cityCoordinates = [0,0];
+        }
+
         const mockResponse = {
-            summary: {
-                title: `Amazing ${days}-Day ${city} Adventure`,
-                description: `Explore ${city} with this perfect ${days}-day itinerary designed for a budget of ₹${budget}. ${preferences ? `Special focus on: ${preferences}` : ''}`
-            },
+            summary: `Amazing ${days}-Day ${city} Adventure. Explore ${city} with this perfect itinerary designed for a budget of ₹${budget}. ${preferences ? `Special focus on: ${preferences}` : ''}`,
+            totalCost: parseInt(budget),
+            cityCoordinates: cityCoordinates,
             hotels: [
-                {
-                    name: "Luxury Palace Hotel",
-                    price_per_night: Math.floor(budget / days / 2),
-                    category: "Luxury",
-                    distance_from_center: "1.5 km from center",
-                    rating: 4.7,
-                    features: ["Pool", "Spa", "Free WiFi"],
-                    link: "https://booking.com"
-                },
-                {
-                    name: "Mid-range Comfort Inn",
-                    price_per_night: Math.floor(budget / days / 3),
-                    category: "Mid-range",
-                    distance_from_center: "2.8 km from center",
-                    rating: 4.2,
-                    features: ["Breakfast", "Parking", "AC"],
-                    link: "https://booking.com"
-                }
+                { name: "Luxury Palace Hotel", description: "5-star hotel with pool" },
+                { name: "Mid-range Comfort Inn", description: "Comfortable & cozy" }
             ],
-            itinerary: Array.from({length: parseInt(days)}, (_, i) => ({
+            itinerary: Array.from({ length: parseInt(days) }, (_, i) => ({
                 day: i + 1,
-                theme: `${city} Exploration Day ${i + 1}`,
-                morning: {
-                    activity: `Visit ${city}'s famous landmarks`,
-                    cost: Math.floor(budget / days / 4),
-                    map_url: "https://maps.google.com",
-                    coordinates: [0, 0]
-                },
-                afternoon: {
-                    activity: "Lunch and local experience",
-                    cost: Math.floor(budget / days / 5),
-                    map_url: "https://maps.google.com",
-                    coordinates: [0, 0]
-                },
-                evening: {
-                    activity: "Dinner and entertainment",
-                    cost: Math.floor(budget / days / 4),
-                    map_url: "https://maps.google.com",
-                    coordinates: [0, 0]
-                },
-                dining: {
-                    restaurant: "Authentic Local Restaurant",
-                    cuisine: "Local Specialties",
-                    cost: Math.floor(budget / days / 6),
-                    map_url: "https://maps.google.com",
-                    coordinates: [0, 0]
-                },
-                hotel: {
-                    name: i % 2 === 0 ? "Luxury Palace Hotel" : "Mid-range Comfort Inn",
-                    price: Math.floor(budget / days / (i % 2 === 0 ? 2 : 3))
-                },
-                daily_cost: Math.floor(budget / days)
-            })),
-            total_cost: parseInt(budget)
+                activities: [
+                    `Visit famous landmarks of ${city}`,
+                    `Enjoy local cuisine`,
+                    `Evening entertainment`
+                ]
+            }))
         };
 
         return {
@@ -88,7 +47,6 @@ exports.handler = async function(event, context) {
         };
 
     } catch (error) {
-        console.error('Error:', error);
         return {
             statusCode: 500,
             headers: {
