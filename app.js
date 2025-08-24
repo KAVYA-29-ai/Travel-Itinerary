@@ -1,4 +1,3 @@
-// app.js
 document.addEventListener("DOMContentLoaded", async () => {
   const form = document.getElementById("travel-form");
   const outputDiv = document.getElementById("output");
@@ -10,7 +9,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let map, marker;
 
-  // Fetch Mapbox token dynamically from get-mapbox-token.js
+  // Fetch Mapbox token
   let mapboxToken = "";
   try {
     const res = await fetch("/.netlify/functions/get-mapbox-token");
@@ -20,12 +19,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.error("Failed to fetch Mapbox token:", err);
   }
 
-  // Initialize Mapbox
   mapboxgl.accessToken = mapboxToken;
   map = new mapboxgl.Map({
     container: 'preview-map',
     style: 'mapbox://styles/mapbox/streets-v12',
-    center: [77.2090, 28.6139], // default Delhi
+    center: [77.2090, 28.6139],
     zoom: 4
   });
 
@@ -38,36 +36,41 @@ document.addEventListener("DOMContentLoaded", async () => {
   function displayTrip(trip) {
     outputDiv.style.display = "block";
     outputDiv.innerHTML = `
-      <div class="glass rounded-3xl p-8 shadow-2xl">
+      <div class="glass rounded-3xl p-8 shadow-2xl mb-8 slide-in">
         <h2 class="text-3xl font-bold text-white mb-4">Trip Summary</h2>
         <p class="text-blue-100">${trip.summary}</p>
         <p class="text-blue-200 font-semibold mt-2">Estimated Cost: ₹${trip.totalCost}</p>
       </div>
 
-      <div class="glass rounded-3xl p-8 shadow-2xl">
+      <div class="glass rounded-3xl p-8 shadow-2xl mb-8 slide-in">
         <h2 class="text-3xl font-bold text-white mb-4">Recommended Hotels</h2>
         ${trip.hotels.map(hotel => `
-          <div class="mb-4">
-            <h3 class="text-xl font-semibold text-white">${hotel.name}</h3>
+          <div class="mb-4 p-4 glass card-hover">
+            <h3 class="text-xl font-semibold text-white">${hotel.name} - ₹${hotel.pricePerNight}/night</h3>
             <p class="text-blue-100">${hotel.description}</p>
+            <p class="text-blue-200 font-semibold mt-1">Rating: ${hotel.rating} ⭐ | ${hotel.distanceFromCenter}</p>
           </div>
         `).join('')}
       </div>
 
-      <div class="glass rounded-3xl p-8 shadow-2xl">
+      <div class="glass rounded-3xl p-8 shadow-2xl mb-8 slide-in">
         <h2 class="text-3xl font-bold text-white mb-4">Day by Day Itinerary</h2>
         ${trip.itinerary.map(day => `
-          <div class="mb-4">
-            <h3 class="text-xl font-semibold text-white">Day ${day.day}</h3>
+          <div class="mb-6 p-4 glass card-hover">
+            <h3 class="text-xl font-semibold text-white mb-2">Day ${day.day} - ₹${day.dailyCost}</h3>
             <ul class="list-disc list-inside text-blue-100">
-              ${day.activities.map(act => `<li>${act}</li>`).join('')}
+              <li>🌞 Morning: ${day.morning.activity} - ₹${day.morning.cost}</li>
+              <li>🍴 Lunch/Afternoon: ${day.afternoon.activity} - ₹${day.afternoon.cost}</li>
+              <li>🌆 Evening: ${day.evening.activity} - ₹${day.evening.cost}</li>
+              <li>🍽 Dining: ${day.dining.restaurant} (${day.dining.cuisine}) - ₹${day.dining.cost}</li>
+              <li>🏨 Stay: ${day.hotel.name} - ₹${day.hotel.price}</li>
             </ul>
           </div>
         `).join('')}
       </div>
     `;
 
-    // Update Mapbox marker
+    // Map marker
     if (trip.cityCoordinates) {
       const [lng, lat] = trip.cityCoordinates;
       map.flyTo({ center: [lng, lat], zoom: 10 });
@@ -80,8 +83,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     e.preventDefault();
 
     const city = document.getElementById("city").value.trim();
-    const budget = document.getElementById("budget").value.trim();
-    const days = document.getElementById("days").value.trim();
+    const budget = parseInt(document.getElementById("budget").value.trim());
+    const days = parseInt(document.getElementById("days").value.trim());
     const preferences = document.getElementById("preferences").value.trim();
 
     if (!city || !budget || !days) {
@@ -107,22 +110,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       showError(err.message);
       debugDiv.textContent = err.message;
 
-      // fallback mock trip
+      // Fallback with detailed pricing
       const fallbackTrip = {
-        summary: `${days}-day trip to ${city}`,
+        summary: `${days}-day trip to ${city} with full breakdown`,
         totalCost: budget,
         cityCoordinates: city.toLowerCase() === "paris" ? [2.3522, 48.8566] : [77.2090, 28.6139],
         hotels: [
-          { name: "Luxury Palace Hotel", description: "5-star hotel with pool" },
-          { name: "Mid-range Comfort Inn", description: "Comfortable & cozy" }
+          { name: "Luxury Palace Hotel", pricePerNight: Math.floor(budget/2), description: "5-star hotel with pool", rating: 4.7, distanceFromCenter: "1.5 km from center" },
+          { name: "Mid-range Comfort Inn", pricePerNight: Math.floor(budget/3), description: "Comfortable & cozy", rating: 4.2, distanceFromCenter: "2.8 km from center" }
         ],
-        itinerary: Array.from({ length: parseInt(days) }, (_, i) => ({
-          day: i + 1,
-          activities: [
-            `Visit landmarks in ${city}`,
-            "Enjoy local cuisine",
-            "Evening entertainment"
-          ]
+        itinerary: Array.from({ length: days }, (_, i) => ({
+          day: i+1,
+          dailyCost: Math.floor(budget/days),
+          morning: { activity: `Visit famous landmarks of ${city}`, cost: Math.floor(budget/days/4) },
+          afternoon: { activity: "Enjoy local cuisine", cost: Math.floor(budget/days/5) },
+          evening: { activity: "Evening entertainment", cost: Math.floor(budget/days/4) },
+          dining: { restaurant: "Authentic Local Restaurant", cuisine: "Local Specialties", cost: Math.floor(budget/days/6) },
+          hotel: { name: i % 2 === 0 ? "Luxury Palace Hotel" : "Mid-range Comfort Inn", price: i % 2 === 0 ? Math.floor(budget/days/2) : Math.floor(budget/days/3) }
         }))
       };
       displayTrip(fallbackTrip);
