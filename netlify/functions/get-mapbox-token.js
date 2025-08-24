@@ -1,3 +1,4 @@
+// netlify/functions/get-mapbox-token.js
 exports.handler = async () => {
     return {
         statusCode: 200,
