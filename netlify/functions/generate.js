@@ -1,5 +1,4 @@
-import fetch from "node-fetch";
-
+// generate.js - Netlify Function
 export const handler = async (event, context) => {
   if (event.httpMethod !== "POST") {
     return {
@@ -15,7 +14,7 @@ export const handler = async (event, context) => {
       throw new Error("Missing budget or days");
     }
 
-    // Gemini prompt
+    // Gemini AI prompt
     const detailedPrompt = `
 You are a travel planning expert.
 Create a ${days}-day detailed itinerary for ${city || "a destination"}.
@@ -50,7 +49,7 @@ Guidelines:
 - Use ₹ for all costs
 `;
 
-    // Call Gemini API
+    // Call Gemini API using Node 18 global fetch
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GOOGLE_AI_API_KEY}`,
       {
@@ -87,7 +86,7 @@ Guidelines:
     };
   } catch (err) {
     console.error("Error:", err);
-    // Minimal fallback structure
+    // Minimal fallback JSON
     const fallback = {
       summary: "Your travel plan will appear here.",
       totalCost: event.body ? JSON.parse(event.body).budget : 0,
@@ -96,6 +95,10 @@ Guidelines:
       _fallback: true,
       _error: err.message,
     };
-    return { statusCode: 200, headers: { "Content-Type": "application/json" }, body: JSON.stringify(fallback) };
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify(fallback),
+    };
   }
 };
