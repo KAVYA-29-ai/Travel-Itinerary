@@ -1,341 +1,101 @@
+import fetch from "node-fetch";
+
 export const handler = async (event, context) => {
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
-      body: JSON.stringify({ error: "Method not allowed" })
+      body: JSON.stringify({ error: "Method not allowed" }),
     };
   }
 
   try {
     const { city, budget, days, preferences } = JSON.parse(event.body);
-    
-    if (!city || !budget || !days) {
-      throw new Error("Missing required fields");
+
+    if (!budget || !days) {
+      throw new Error("Missing budget or days");
     }
 
-    // Budget validation
-    const minBudget = days * 5000;
-    if (budget < minBudget) {
-      throw new Error(`Budget too low! Minimum ₹${minBudget} needed for ${days} days in ${city}`);
-    }
-
-    // Get coordinates from Mapbox
-    let coordinates = [77.2090, 28.6139];
-    try {
-      const geoRes = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(city)}.json?access_token=${process.env.MAPBOX_ACCESS_TOKEN}&limit=1`
-      );
-      const geoData = await geoRes.json();
-      if (geoData?.features?.[0]?.center) {
-        coordinates = geoData.features[0].center;
-      }
-    } catch (err) {
-      console.error("Mapbox geocoding failed:", err.message);
-    }
-
-    // Create detailed prompt for Gemini
+    // Gemini prompt
     const detailedPrompt = `
-You are a travel planning expert. Create a detailed ${days}-day itinerary for ${city} with a total budget of ₹${budget}.
+You are a travel planning expert.
+Create a ${days}-day detailed itinerary for ${city || "a destination"}.
+Total budget: ₹${budget}.
+Travel preferences: ${preferences || "sightseeing, food, culture"}.
 
-Travel preferences: ${preferences || "general sightseeing and local experiences"}
-
-Please provide your response in the following JSON format (respond ONLY with valid JSON, no additional text):
-
+Output ONLY valid JSON with this structure:
 {
-  "summary": "Brief exciting description of the trip (2-3 sentences)",
-  "totalCost": ${budget},
+  "summary": "Short exciting trip description",
+  "totalCost": 0,
   "hotels": [
-    {
-      "name": "Hotel Name",
-      "pricePerNight": 5000,
-      "description": "Hotel description",
-      "rating": 4.5,
-      "distanceFromCenter": "Distance from city center"
-    }
+    {"name":"", "pricePerNight":0, "description":"", "rating":0, "distanceFromCenter":""}
   ],
   "itinerary": [
     {
       "day": 1,
-      "dailyCost": 8000,
-      "morning": {
-        "activity": "Specific morning activity with real places",
-        "cost": 2000
-      },
-      "afternoon": {
-        "activity": "Specific afternoon activity with real places",
-        "cost": 1500
-      },
-      "evening": {
-        "activity": "Specific evening activity with real places",
-        "cost": 2000
-      },
-      "dining": {
-        "restaurant": "Real restaurant name if possible",
-        "cuisine": "Type of cuisine",
-        "cost": 1500
-      },
-      "hotel": {
-        "name": "Hotel name from hotels array",
-        "price": 1000
-      }
+      "dailyCost":0,
+      "morning":{"activity":"", "cost":0},
+      "afternoon":{"activity":"", "cost":0},
+      "evening":{"activity":"", "cost":0},
+      "dining":{"restaurant":"", "cuisine":"", "cost":0},
+      "hotel":{"name":"", "price":0}
     }
   ]
 }
-
-Important guidelines:
-- Include 2-3 realistic hotels with different price ranges
-- Use real place names, attractions, and areas in ${city}
-- Make sure daily costs add up realistically within the total budget
-- Include specific activities, not generic descriptions
-- Hotel prices should be per night
-- Make dining recommendations specific to ${city}'s cuisine
-- Ensure all costs are in Indian Rupees (₹)
-- Total of all daily costs should not exceed the budget of ₹${budget}
+Guidelines:
+- Use real hotels, restaurants, attractions if possible
+- Hotel prices per night should be realistic
+- Activities and dining should be relevant to the city or destination
+- Daily costs must sum within total budget
+- Include 2-3 hotels with different price ranges
+- Use ₹ for all costs
 `;
 
     // Call Gemini API
-    console.log("Calling Gemini API...");
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GOOGLE_AI_API_KEY}`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: detailedPrompt
-                }
-              ]
-            }
-          ],
+          contents: [{ parts: [{ text: detailedPrompt }] }],
           generationConfig: {
             temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
             maxOutputTokens: 8192,
-            responseMimeType: "application/json"
-          }
-        })
+            responseMimeType: "application/json",
+          },
+        }),
       }
     );
 
     if (!geminiResponse.ok) {
       const errorData = await geminiResponse.text();
-      console.error("Gemini API error:", errorData);
-      throw new Error(`Gemini API failed: ${geminiResponse.status}`);
+      throw new Error(`Gemini API failed: ${geminiResponse.status} ${errorData}`);
     }
 
     const geminiData = await geminiResponse.json();
-    console.log("Gemini response:", JSON.stringify(geminiData, null, 2));
-
-    // Extract the generated content
     const generatedText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    if (!generatedText) {
-      throw new Error("No content generated by Gemini API");
-    }
 
-    // Parse the JSON response from Gemini
-    let parsedItinerary;
-    try {
-      parsedItinerary = JSON.parse(generatedText);
-    } catch (parseError) {
-      console.error("Failed to parse Gemini JSON:", generatedText);
-      throw new Error("Invalid JSON response from Gemini");
-    }
+    if (!generatedText) throw new Error("No content from Gemini");
 
-    // Validate the structure
-    if (!parsedItinerary.summary || !parsedItinerary.hotels || !parsedItinerary.itinerary) {
-      throw new Error("Invalid itinerary structure from Gemini");
-    }
-
-    // Add city coordinates to the response
-    parsedItinerary.cityCoordinates = coordinates;
-
-    // Ensure totalCost is a number
+    const parsedItinerary = JSON.parse(generatedText);
     parsedItinerary.totalCost = parseInt(budget);
-
-    console.log("Final itinerary:", JSON.stringify(parsedItinerary, null, 2));
 
     return {
       statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "POST, OPTIONS"
-      },
-      body: JSON.stringify(parsedItinerary)
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify(parsedItinerary),
     };
-
   } catch (err) {
-    console.error("Handler error:", err);
-    
-    // Enhanced fallback with realistic data
-    const fallbackResponse = createFallbackItinerary(city, budget, days, preferences);
-    
-    return {
-      statusCode: 200, // Return 200 to avoid triggering frontend error handling
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      },
-      body: JSON.stringify({
-        ...fallbackResponse,
-        _fallback: true,
-        _error: err.message
-      })
+    console.error("Error:", err);
+    // Minimal fallback structure
+    const fallback = {
+      summary: "Your travel plan will appear here.",
+      totalCost: event.body ? JSON.parse(event.body).budget : 0,
+      hotels: [],
+      itinerary: [],
+      _fallback: true,
+      _error: err.message,
     };
+    return { statusCode: 200, headers: { "Content-Type": "application/json" }, body: JSON.stringify(fallback) };
   }
 };
-
-// Enhanced fallback function with realistic data
-function createFallbackItinerary(city, budget, days, preferences) {
-  const dailyBudget = Math.floor(budget / days);
-  const cityLower = city.toLowerCase();
-  
-  // City-specific data
-  const cityData = getCitySpecificData(cityLower);
-  
-  return {
-    summary: `Experience the best of ${city} in ${days} days! Explore iconic landmarks, savor local cuisine, and immerse yourself in the culture within your ₹${budget.toLocaleString('en-IN')} budget.`,
-    totalCost: parseInt(budget),
-    cityCoordinates: cityData.coordinates,
-    hotels: [
-      {
-        name: cityData.hotels.luxury.name,
-        pricePerNight: Math.floor(dailyBudget * 0.6),
-        description: cityData.hotels.luxury.description,
-        rating: 4.6,
-        distanceFromCenter: "1.2 km from city center"
-      },
-      {
-        name: cityData.hotels.mid.name,
-        pricePerNight: Math.floor(dailyBudget * 0.4),
-        description: cityData.hotels.mid.description,
-        rating: 4.2,
-        distanceFromCenter: "2.5 km from city center"
-      },
-      {
-        name: cityData.hotels.budget.name,
-        pricePerNight: Math.floor(dailyBudget * 0.25),
-        description: cityData.hotels.budget.description,
-        rating: 3.8,
-        distanceFromCenter: "4.0 km from city center"
-      }
-    ],
-    itinerary: Array.from({ length: days }, (_, i) => ({
-      day: i + 1,
-      dailyCost: dailyBudget,
-      morning: {
-        activity: cityData.activities.morning[i % cityData.activities.morning.length],
-        cost: Math.floor(dailyBudget * 0.25)
-      },
-      afternoon: {
-        activity: cityData.activities.afternoon[i % cityData.activities.afternoon.length],
-        cost: Math.floor(dailyBudget * 0.2)
-      },
-      evening: {
-        activity: cityData.activities.evening[i % cityData.activities.evening.length],
-        cost: Math.floor(dailyBudget * 0.25)
-      },
-      dining: {
-        restaurant: cityData.restaurants[i % cityData.restaurants.length].name,
-        cuisine: cityData.restaurants[i % cityData.restaurants.length].cuisine,
-        cost: Math.floor(dailyBudget * 0.15)
-      },
-      hotel: {
-        name: i % 3 === 0 ? cityData.hotels.luxury.name : 
-              i % 3 === 1 ? cityData.hotels.mid.name : cityData.hotels.budget.name,
-        price: Math.floor(dailyBudget * 0.15)
-      }
-    }))
-  };
-}
-
-// City-specific realistic data
-function getCitySpecificData(city) {
-  const cityDatabase = {
-    'paris': {
-      coordinates: [2.3522, 48.8566],
-      hotels: {
-        luxury: { name: "Le Meurice Paris", description: "Palace hotel near Louvre with Michelin dining" },
-        mid: { name: "Hotel Malte Opera", description: "Boutique hotel in Opera district" },
-        budget: { name: "Hotel des Grands Boulevards", description: "Stylish budget hotel in central Paris" }
-      },
-      activities: {
-        morning: ["Visit Eiffel Tower and Trocadéro", "Explore Louvre Museum", "Notre-Dame Cathedral area", "Montmartre and Sacré-Cœur"],
-        afternoon: ["Seine River cruise", "Champs-Élysées shopping", "Latin Quarter exploration", "Marais district food tour"],
-        evening: ["Sunset at Arc de Triomphe", "Evening at Montparnasse Tower", "Seine riverbank stroll", "Cabaret show in Pigalle"]
-      },
-      restaurants: [
-        { name: "L'As du Fallafel", cuisine: "Middle Eastern" },
-        { name: "Breizh Café", cuisine: "French Crêpes" },
-        { name: "Le Comptoir Relais", cuisine: "French Bistro" },
-        { name: "Pink Mamma", cuisine: "Italian" }
-      ]
-    },
-    'tokyo': {
-      coordinates: [139.6503, 35.6762],
-      hotels: {
-        luxury: { name: "The Ritz-Carlton Tokyo", description: "Luxury hotel in Roppongi with Tokyo views" },
-        mid: { name: "Hotel Gracery Shinjuku", description: "Modern hotel overlooking Godzilla Head" },
-        budget: { name: "Capsule Hotel Anshin Oyado", description: "Traditional capsule hotel experience" }
-      },
-      activities: {
-        morning: ["Senso-ji Temple in Asakusa", "Tokyo Skytree visit", "Meiji Shrine in Harajuku", "Tsukiji Outer Market"],
-        afternoon: ["Shibuya Crossing experience", "Harajuku street culture", "Ginza luxury shopping", "Ueno Park and museums"],
-        evening: ["Roppongi nightlife", "Golden Gai bar hopping", "Robot Restaurant show", "Tokyo Tower illumination"]
-      },
-      restaurants: [
-        { name: "Sukiyabashi Jiro", cuisine: "Sushi" },
-        { name: "Ichiran Ramen", cuisine: "Ramen" },
-        { name: "Gonpachi", cuisine: "Traditional Japanese" },
-        { name: "Bills Omotesando", cuisine: "Modern Australian" }
-      ]
-    },
-    'mumbai': {
-      coordinates: [72.8777, 19.0760],
-      hotels: {
-        luxury: { name: "The Taj Mahal Palace", description: "Iconic luxury hotel overlooking Gateway of India" },
-        mid: { name: "Hotel Suba Palace", description: "Heritage hotel in Colaba" },
-        budget: { name: "Hotel City Palace", description: "Budget-friendly hotel near CST station" }
-      },
-      activities: {
-        morning: ["Gateway of India and Taj Hotel", "Elephanta Caves ferry trip", "Crawford Market exploration", "Marine Drive walk"],
-        afternoon: ["Dhobi Ghat visit", "Bollywood studio tour", "Chor Bazaar shopping", "Hanging Gardens"],
-        evening: ["Juhu Beach sunset", "Bandra-Worli Sea Link", "Street food at Mohammed Ali Road", "Colaba Causeway"]
-      },
-      restaurants: [
-        { name: "Trishna", cuisine: "Coastal Indian" },
-        { name: "Britannia & Co.", cuisine: "Parsi" },
-        { name: "Leopold Cafe", cuisine: "Continental" },
-        { name: "Khyber", cuisine: "North Indian" }
-      ]
-    }
-  };
-
-  // Default fallback for unknown cities
-  return cityDatabase[city] || {
-    coordinates: [77.2090, 28.6139],
-    hotels: {
-      luxury: { name: `${city} Grand Hotel`, description: "Luxury accommodation with premium amenities" },
-      mid: { name: `${city} Plaza`, description: "Comfortable mid-range hotel" },
-      budget: { name: `${city} Inn`, description: "Budget-friendly clean accommodation" }
-    },
-    activities: {
-      morning: [`Explore ${city}'s historic center`, `Visit ${city}'s main attractions`, `Local sightseeing tour`],
-      afternoon: [`${city} food and market tour`, `Cultural sites of ${city}`, `Shopping in ${city}`],
-      evening: [`${city} nightlife experience`, `Evening entertainment`, `Local cultural show`]
-    },
-    restaurants: [
-      { name: `${city} Traditional Restaurant`, cuisine: "Local Cuisine" },
-      { name: `${city} Street Food Corner`, cuisine: "Street Food" },
-      { name: `${city} Fine Dining`, cuisine: "International" }
-    ]
-  };
-}
