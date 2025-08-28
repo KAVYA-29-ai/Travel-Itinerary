@@ -1,4 +1,4 @@
-// generate.js - Netlify Function (Gemini + Mapbox coordinates)
+// generate.js - Netlify Function (Gemini + Mapbox + Realistic dailyCost)
 export const handler = async (event, context) => {
   if (event.httpMethod !== "POST") {
     return {
@@ -15,7 +15,7 @@ export const handler = async (event, context) => {
     }
 
     // Default coordinates (in case Mapbox fails)
-    let cityCoordinates = [77.209, 28.6139]; // Delhi as default
+    let cityCoordinates = [77.209, 28.6139]; // default Delhi
 
     // Get city coordinates from Mapbox
     if (city) {
@@ -60,7 +60,7 @@ Output ONLY valid JSON with this structure:
 }
 Guidelines:
 - Use real hotels, restaurants, attractions if possible
-- Hotel prices per night should be realistic
+- Hotel prices per night should be realistic and <= total budget/day
 - Activities and dining should be relevant to the city or destination
 - Daily costs must sum within total budget
 - Include 2-3 hotels with different price ranges
@@ -94,10 +94,33 @@ Guidelines:
 
     if (!generatedText) throw new Error("No content from Gemini");
 
-    const parsedItinerary = JSON.parse(generatedText);
+    let parsedItinerary = JSON.parse(generatedText);
 
-    // Add totalCost and city coordinates
-    parsedItinerary.totalCost = parseInt(budget);
+    // Dynamic dailyCost calculation
+    parsedItinerary.itinerary = parsedItinerary.itinerary.map((day) => {
+      const morningCost = day.morning?.cost || 0;
+      const afternoonCost = day.afternoon?.cost || 0;
+      const eveningCost = day.evening?.cost || 0;
+      const diningCost = day.dining?.cost || 0;
+      const hotelPrice = day.hotel?.price || 0;
+
+      const dailyCost = morningCost + afternoonCost + eveningCost + diningCost + hotelPrice;
+
+      return {
+        ...day,
+        dailyCost,
+        morning: day.morning || { activity: "Explore local area", cost: 0 },
+        afternoon: day.afternoon || { activity: "Sightseeing", cost: 0 },
+        evening: day.evening || { activity: "Evening activity", cost: 0 },
+        dining: day.dining || { restaurant: "Local eatery", cuisine: "Local cuisine", cost: 0 },
+        hotel: day.hotel || { name: "Unknown", price: 0 },
+      };
+    });
+
+    // Total cost = sum of all dailyCost
+    parsedItinerary.totalCost = parsedItinerary.itinerary.reduce((sum, d) => sum + d.dailyCost, 0);
+
+    // Add city coordinates
     parsedItinerary.cityCoordinates = cityCoordinates;
 
     return {
@@ -114,7 +137,7 @@ Guidelines:
       totalCost: event.body ? JSON.parse(event.body).budget : 0,
       hotels: [],
       itinerary: [],
-      cityCoordinates: [77.209, 28.6139], // default Delhi
+      cityCoordinates: [77.209, 28.6139],
       _fallback: true,
       _error: err.message,
     };
