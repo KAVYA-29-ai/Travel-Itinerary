@@ -1,4 +1,4 @@
-// generate.js - Netlify Function
+// generate.js - Netlify Function (Gemini + Mapbox coordinates)
 export const handler = async (event, context) => {
   if (event.httpMethod !== "POST") {
     return {
@@ -12,6 +12,24 @@ export const handler = async (event, context) => {
 
     if (!budget || !days) {
       throw new Error("Missing budget or days");
+    }
+
+    // Default coordinates (in case Mapbox fails)
+    let cityCoordinates = [77.209, 28.6139]; // Delhi as default
+
+    // Get city coordinates from Mapbox
+    if (city) {
+      try {
+        const geoRes = await fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(city)}.json?access_token=${process.env.MAPBOX_ACCESS_TOKEN}&limit=1`
+        );
+        const geoData = await geoRes.json();
+        if (geoData?.features?.[0]?.center) {
+          cityCoordinates = geoData.features[0].center;
+        }
+      } catch (err) {
+        console.error("Mapbox geocoding failed:", err.message);
+      }
     }
 
     // Gemini AI prompt
@@ -77,7 +95,10 @@ Guidelines:
     if (!generatedText) throw new Error("No content from Gemini");
 
     const parsedItinerary = JSON.parse(generatedText);
+
+    // Add totalCost and city coordinates
     parsedItinerary.totalCost = parseInt(budget);
+    parsedItinerary.cityCoordinates = cityCoordinates;
 
     return {
       statusCode: 200,
@@ -86,12 +107,14 @@ Guidelines:
     };
   } catch (err) {
     console.error("Error:", err);
+
     // Minimal fallback JSON
     const fallback = {
       summary: "Your travel plan will appear here.",
       totalCost: event.body ? JSON.parse(event.body).budget : 0,
       hotels: [],
       itinerary: [],
+      cityCoordinates: [77.209, 28.6139], // default Delhi
       _fallback: true,
       _error: err.message,
     };
