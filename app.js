@@ -15,16 +15,30 @@ async function initMapbox() {
   try {
     const response = await fetch('/.netlify/functions/get-mapbox-token');
     const data = await response.json();
-    if (!data.configured || !data.token || !window.mapboxgl) {
+    const token = String(data.token || '').trim();
+    if (!data.configured || !token || !window.mapboxgl) {
       status.textContent = 'Mapbox token is not configured. Itinerary generation still works.';
       $('#preview-map').textContent = 'Map preview unavailable.';
       return;
     }
 
-    mapboxgl.accessToken = data.token;
-    map = new mapboxgl.Map({ container: 'preview-map', style: 'mapbox://styles/mapbox/dark-v11', center: [77.209, 28.6139], zoom: 3.2, attributionControl: false });
+    mapboxgl.accessToken = token;
+    map = new mapboxgl.Map({
+      container: 'preview-map',
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: [77.209, 28.6139],
+      zoom: 3.2,
+      attributionControl: false
+    });
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right');
-    status.textContent = 'Ready to preview your destination.';
+    map.once('load', () => {
+      map.resize();
+      status.textContent = 'Ready to preview your destination.';
+    });
+    map.on('error', () => {
+      status.textContent = 'Mapbox tiles could not load. Check the public token and domain restrictions.';
+    });
+    requestAnimationFrame(() => map.resize());
   } catch (error) {
     status.textContent = 'Map preview unavailable. Check your Mapbox configuration.';
     $('#preview-map').textContent = 'Map preview unavailable.';

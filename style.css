@@ -302,6 +302,8 @@ textarea:focus {
   min-height: 440px;
   display: grid;
   place-items: center;
+  position: relative;
+  z-index: 1;
   overflow: hidden;
   border-radius: 24px;
   border: 1px solid var(--line);
@@ -434,7 +436,10 @@ textarea:focus {
   to { opacity: 1; transform: translateY(0); }
 }
 
+.mapboxgl-map,
 .mapboxgl-canvas { border-radius: 24px; }
+.mapboxgl-canvas-container,
+.mapboxgl-control-container { position: relative; z-index: 2; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
