@@ -1,137 +1,157 @@
-document.addEventListener("DOMContentLoaded", async () => {
-  const form = document.getElementById("travel-form");
-  const outputDiv = document.getElementById("output");
-  const errorDiv = document.getElementById("error");
-  const errorMsg = document.getElementById("error-message");
-  const loadingDiv = document.getElementById("loading");
-  const debugDiv = document.getElementById("debug-info");
-  const mapPreview = document.getElementById("preview-map");
+const $ = (selector) => document.querySelector(selector);
+const create = (tag, className, text) => {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (text !== undefined) element.textContent = text;
+  return element;
+};
 
-  let map, marker;
+const formatMoney = (value) => `₹${Number(value || 0).toLocaleString('en-IN')}`;
+let map;
+let marker;
 
-  // Fetch Mapbox token
-  let mapboxToken = "";
+async function initMapbox() {
+  const status = $('#map-status');
   try {
-    const res = await fetch("/.netlify/functions/get-mapbox-token");
-    const data = await res.json();
-    mapboxToken = data.token;
-  } catch (err) {
-    console.error("Failed to fetch Mapbox token:", err);
-  }
-
-  mapboxgl.accessToken = mapboxToken;
-  map = new mapboxgl.Map({
-    container: 'preview-map',
-    style: 'mapbox://styles/mapbox/streets-v12',
-    center: [77.2090, 28.6139],
-    zoom: 4
-  });
-
-  function showError(message) {
-    errorDiv.style.display = "block";
-    errorMsg.textContent = message;
-    setTimeout(() => { errorDiv.style.display = "none"; }, 5000);
-  }
-
-  function displayTrip(trip) {
-    outputDiv.style.display = "block";
-    outputDiv.innerHTML = `
-      <div class="glass rounded-3xl p-8 shadow-2xl mb-8 slide-in">
-        <h2 class="text-3xl font-bold text-white mb-4">Trip Summary</h2>
-        <p class="text-blue-100">${trip.summary}</p>
-        <p class="text-blue-200 font-semibold mt-2">Estimated Cost: ₹${trip.totalCost}</p>
-      </div>
-
-      <div class="glass rounded-3xl p-8 shadow-2xl mb-8 slide-in">
-        <h2 class="text-3xl font-bold text-white mb-4">Recommended Hotels</h2>
-        ${trip.hotels.map(hotel => `
-          <div class="mb-4 p-4 glass card-hover">
-            <h3 class="text-xl font-semibold text-white">${hotel.name} - ₹${hotel.pricePerNight}/night</h3>
-            <p class="text-blue-100">${hotel.description}</p>
-            <p class="text-blue-200 font-semibold mt-1">Rating: ${hotel.rating} ⭐ | ${hotel.distanceFromCenter}</p>
-          </div>
-        `).join('')}
-      </div>
-
-      <div class="glass rounded-3xl p-8 shadow-2xl mb-8 slide-in">
-        <h2 class="text-3xl font-bold text-white mb-4">Day by Day Itinerary</h2>
-        ${trip.itinerary.map(day => `
-          <div class="mb-6 p-4 glass card-hover">
-            <h3 class="text-xl font-semibold text-white mb-2">Day ${day.day} - ₹${day.dailyCost}</h3>
-            <ul class="list-disc list-inside text-blue-100">
-              <li>🌞 Morning: ${day.morning.activity} - ₹${day.morning.cost}</li>
-              <li>🍴 Lunch/Afternoon: ${day.afternoon.activity} - ₹${day.afternoon.cost}</li>
-              <li>🌆 Evening: ${day.evening.activity} - ₹${day.evening.cost}</li>
-              <li>🍽 Dining: ${day.dining.restaurant} (${day.dining.cuisine}) - ₹${day.dining.cost}</li>
-              <li>🏨 Stay: ${day.hotel.name} - ₹${day.hotel.price}</li>
-            </ul>
-          </div>
-        `).join('')}
-      </div>
-    `;
-
-    // Map marker
-    if (trip.cityCoordinates) {
-      const [lng, lat] = trip.cityCoordinates;
-      map.flyTo({ center: [lng, lat], zoom: 10 });
-      if (marker) marker.remove();
-      marker = new mapboxgl.Marker().setLngLat([lng, lat]).addTo(map);
-    }
-  }
-
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const city = document.getElementById("city").value.trim();
-    const budget = parseInt(document.getElementById("budget").value.trim());
-    const days = parseInt(document.getElementById("days").value.trim());
-    const preferences = document.getElementById("preferences").value.trim();
-
-    if (!city || !budget || !days) {
-      showError("Please fill all required fields!");
+    const response = await fetch('/.netlify/functions/get-mapbox-token');
+    const data = await response.json();
+    if (!data.configured || !data.token || !window.mapboxgl) {
+      status.textContent = 'Mapbox token is not configured. Itinerary generation still works.';
+      $('#preview-map').textContent = 'Map preview unavailable.';
       return;
     }
 
-    loadingDiv.classList.remove("hidden");
-    outputDiv.style.display = "none";
+    mapboxgl.accessToken = data.token;
+    map = new mapboxgl.Map({ container: 'preview-map', style: 'mapbox://styles/mapbox/dark-v11', center: [77.209, 28.6139], zoom: 3.2, attributionControl: false });
+    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right');
+    status.textContent = 'Ready to preview your destination.';
+  } catch (error) {
+    status.textContent = 'Map preview unavailable. Check your Mapbox configuration.';
+    $('#preview-map').textContent = 'Map preview unavailable.';
+  }
+}
 
+function setBusy(isBusy) {
+  $('#loading').classList.toggle('hidden', !isBusy);
+  $('#submit-btn').disabled = isBusy;
+  $('#submit-btn span:first-child').textContent = isBusy ? 'Creating...' : 'Create itinerary';
+}
+
+function showError(message) {
+  $('#error-message').textContent = message;
+  $('#error').classList.remove('hidden');
+}
+
+function hideError() {
+  $('#error').classList.add('hidden');
+  $('#error-message').textContent = '';
+}
+
+function addMetric(parent, label, value) {
+  const item = create('div', 'metric');
+  item.append(create('span', '', label), create('strong', '', value));
+  parent.append(item);
+}
+
+function renderTrip(trip) {
+  const output = $('#output');
+  output.replaceChildren();
+  $('#empty-state').classList.add('hidden');
+
+  const summary = create('article', 'glass-panel summary-card reveal');
+  summary.append(create('p', 'eyebrow', `${trip.days} days in ${trip.city}`), create('h2', '', 'Trip summary'), create('p', 'summary-copy', trip.summary));
+  const metrics = create('div', 'metrics-grid');
+  addMetric(metrics, 'Budget', formatMoney(trip.budget));
+  addMetric(metrics, 'Estimated total', formatMoney(trip.totalCost));
+  addMetric(metrics, 'Remaining', formatMoney(Math.max(0, trip.budget - trip.totalCost)));
+  summary.append(metrics);
+  if (trip.mapboxWarning) summary.append(create('p', 'soft-warning', trip.mapboxWarning));
+  output.append(summary);
+
+  const budgetCard = create('article', 'glass-panel reveal');
+  budgetCard.append(create('h2', '', 'Budget control'));
+  const percent = Math.min(100, Math.round((trip.totalCost / trip.budget) * 100));
+  const bar = create('div', 'budget-bar');
+  const fill = create('span');
+  fill.style.width = `${percent}%`;
+  bar.append(fill);
+  budgetCard.append(bar, create('p', 'muted', `${percent}% of your budget is allocated across stays, food, and activities.`));
+  output.append(budgetCard);
+
+  const hotels = create('section', 'results-section reveal');
+  hotels.append(create('h2', '', 'Recommended hotels'));
+  const hotelGrid = create('div', 'hotel-grid');
+  trip.hotels.forEach((hotel) => {
+    const card = create('article', 'hotel-card glass-panel');
+    card.append(create('p', 'rating', `${Number(hotel.rating).toFixed(1)} ★`), create('h3', '', hotel.name), create('p', 'muted', hotel.description), create('strong', 'price', `${formatMoney(hotel.pricePerNight)} / night`), create('p', 'muted', hotel.distanceFromCenter));
+    hotelGrid.append(card);
+  });
+  hotels.append(hotelGrid);
+  output.append(hotels);
+
+  const days = create('section', 'results-section reveal');
+  days.append(create('h2', '', 'Day-by-day itinerary'));
+  trip.itinerary.forEach((day) => {
+    const card = create('article', 'day-card glass-panel');
+    card.append(create('h3', '', `Day ${day.day}`), create('p', 'day-cost', formatMoney(day.dailyCost)));
+    const list = create('div', 'timeline');
+    [
+      ['Morning', day.morning.activity, day.morning.cost],
+      ['Afternoon', day.afternoon.activity, day.afternoon.cost],
+      ['Evening', day.evening.activity, day.evening.cost],
+      ['Dining', `${day.dining.restaurant} • ${day.dining.cuisine}`, day.dining.cost],
+      ['Stay', day.hotel.name, day.hotel.price]
+    ].forEach(([label, text, cost]) => {
+      const row = create('div', 'timeline-item');
+      row.append(create('span', 'timeline-label', label), create('p', '', text), create('strong', '', formatMoney(cost)));
+      list.append(row);
+    });
+    card.append(list);
+    days.append(card);
+  });
+  output.append(days);
+  output.classList.remove('hidden');
+
+  if (map && Array.isArray(trip.cityCoordinates)) {
+    map.flyTo({ center: trip.cityCoordinates, zoom: 10, essential: true });
+    if (marker) marker.remove();
+    marker = new mapboxgl.Marker({ color: '#a78bfa' }).setLngLat(trip.cityCoordinates).addTo(map);
+    $('#map-status').textContent = `Previewing ${trip.city}.`;
+  }
+}
+
+function validateClient(city, budget, days) {
+  if (city.length < 2) return 'Please enter a valid destination city.';
+  if (!Number.isInteger(budget) || budget <= 0) return 'Please enter a valid total budget.';
+  if (!Number.isInteger(days) || days < 1 || days > 21) return 'Trip duration must be between 1 and 21 days.';
+  if (budget < days * 500) return `Budget is too low. Use at least ${formatMoney(days * 500)} for ${days} days.`;
+  return '';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initMapbox();
+  $('#travel-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    hideError();
+    const city = $('#city').value.trim();
+    const budget = Number($('#budget').value);
+    const days = Number($('#days').value);
+    const preferences = $('#preferences').value.trim();
+    const clientError = validateClient(city, budget, days);
+    if (clientError) return showError(clientError);
+
+    setBusy(true);
+    $('#output').classList.add('hidden');
     try {
-      const response = await fetch("/.netlify/functions/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ city, budget, days, preferences })
-      });
-
-      if (!response.ok) throw new Error("Failed to generate itinerary!");
-      const trip = await response.json();
-      displayTrip(trip);
-
-    } catch (err) {
-      showError(err.message);
-      debugDiv.textContent = err.message;
-
-      // Fallback with detailed pricing
-      const fallbackTrip = {
-        summary: `${days}-day trip to ${city} with full breakdown`,
-        totalCost: budget,
-        cityCoordinates: city.toLowerCase() === "paris" ? [2.3522, 48.8566] : [77.2090, 28.6139],
-        hotels: [
-          { name: "Luxury Palace Hotel", pricePerNight: Math.floor(budget/2), description: "5-star hotel with pool", rating: 4.7, distanceFromCenter: "1.5 km from center" },
-          { name: "Mid-range Comfort Inn", pricePerNight: Math.floor(budget/3), description: "Comfortable & cozy", rating: 4.2, distanceFromCenter: "2.8 km from center" }
-        ],
-        itinerary: Array.from({ length: days }, (_, i) => ({
-          day: i+1,
-          dailyCost: Math.floor(budget/days),
-          morning: { activity: `Visit famous landmarks of ${city}`, cost: Math.floor(budget/days/4) },
-          afternoon: { activity: "Enjoy local cuisine", cost: Math.floor(budget/days/5) },
-          evening: { activity: "Evening entertainment", cost: Math.floor(budget/days/4) },
-          dining: { restaurant: "Authentic Local Restaurant", cuisine: "Local Specialties", cost: Math.floor(budget/days/6) },
-          hotel: { name: i % 2 === 0 ? "Luxury Palace Hotel" : "Mid-range Comfort Inn", price: i % 2 === 0 ? Math.floor(budget/days/2) : Math.floor(budget/days/3) }
-        }))
-      };
-      displayTrip(fallbackTrip);
+      const response = await fetch('/.netlify/functions/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ city, budget, days, preferences }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Unable to generate itinerary.');
+      renderTrip(data);
+    } catch (error) {
+      showError(error.message);
+      $('#empty-state').classList.remove('hidden');
     } finally {
-      loadingDiv.classList.add("hidden");
+      setBusy(false);
     }
   });
 });

@@ -1,19 +1,27 @@
 {
   "name": "travel-planner-pro",
   "version": "1.0.0",
-  "description": "AI-powered travel itinerary planner with Mapbox integration",
+  "description": "AI-powered travel itinerary planner with Gemini and Mapbox integration.",
+  "type": "module",
   "main": "index.html",
   "scripts": {
-    "build": "echo 'Build complete'",
-    "dev": "netlify dev"
+    "build": "node scripts/validate-build.mjs",
+    "dev": "netlify dev",
+    "test": "npm run build && node scripts/test-functions.mjs"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.2.1"
+    "@google/genai": "^2.18.0"
   },
   "devDependencies": {
-    "netlify-cli": "^12.0.0"
+    "netlify-cli": "^17.38.1"
   },
-  "keywords": ["travel", "ai", "itinerary", "mapbox", "google-ai"],
-  "author": "Travel Planner Team",
+  "keywords": [
+    "travel",
+    "ai",
+    "itinerary",
+    "mapbox",
+    "gemini"
+  ],
+  "author": "KAVYA-29-ai",
   "license": "MIT"
 }
