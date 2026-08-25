@@ -1,127 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🌍 Travel Planner Pro</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://api.mapbox.com/mapbox-gl-js/v2.9.2/mapbox-gl.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Travel Planner Pro | AI Itinerary Builder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900 min-h-screen font-sans overflow-x-hidden">
+<body>
+  <div class="cosmos" aria-hidden="true"></div>
+  <main class="page-shell">
+    <header class="hero">
+      <p class="eyebrow">AI-powered trips • INR budgets • live maps</p>
+      <h1>Design a stellar itinerary in seconds.</h1>
+      <p class="hero-copy">Tell Gemini where you are going, how long you have, and your budget. Get a polished day-by-day plan with hotels, cost controls, and a Mapbox destination preview.</p>
+    </header>
 
-    <!-- Background Animation -->
-    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div class="stars"></div>
-        <div class="twinkling"></div>
-    </div>
-
-    <div class="relative z-10 container mx-auto px-4 py-8 max-w-7xl">
-        <!-- Header -->
-        <div class="text-center mb-16 transform transition-all duration-1000">
-            <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mb-6 animate-pulse shadow-2xl">
-                <i class="fas fa-globe-americas text-3xl text-white"></i>
-            </div>
-            <h1 class="text-6xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-4">
-                Travel Planner Pro
-            </h1>
-            <p class="text-blue-100 text-xl max-w-3xl mx-auto leading-relaxed mb-6">
-                Craft your dream vacation with AI-powered precision and immersive mapping
-            </p>
+    <section class="planner-grid" aria-label="Trip planner">
+      <form id="travel-form" class="glass-panel planner-card">
+        <div class="section-heading">
+          <span class="icon-pill">✦</span>
+          <div><h2>Plan your escape</h2><p>Budgets are validated before AI generation.</p></div>
         </div>
 
-        <!-- Main Content -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
-            <!-- Input Form -->
-            <div class="glass rounded-3xl p-8 shadow-2xl">
-                <h2 class="text-3xl font-bold text-white mb-6 flex items-center">
-                    <i class="fas fa-pencil-alt text-blue-300 mr-3"></i>
-                    Plan Your Adventure
-                </h2>
-                <form id="travel-form" class="space-y-6">
-                    <div class="form-group">
-                        <label class="block text-blue-200 font-semibold mb-3">Destination City</label>
-                        <div class="relative">
-                            <i class="fas fa-city absolute left-4 top-4 text-blue-300"></i>
-                            <input type="text" id="city" placeholder="e.g., Paris, Tokyo, Bali" 
-                                   class="w-full pl-12 pr-4 py-4 bg-blue-800/50 border-2 border-blue-600/30 rounded-2xl text-black placeholder-blue-300 focus:border-blue-400 transition-all duration-300">
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="form-group">
-                            <label class="block text-blue-200 font-semibold mb-3">Total Budget (₹)</label>
-                            <div class="relative">
-                                <i class="fas fa-rupee-sign absolute left-4 top-4 text-blue-300"></i>
-                                <input type="number" id="budget" placeholder="50,000" 
-                                       class="w-full pl-12 pr-4 py-4 bg-blue-800/50 border-2 border-blue-600/30 rounded-2xl text-black placeholder-blue-300 focus:border-green-400 transition-all duration-300">
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="block text-blue-200 font-semibold mb-3">Trip Duration</label>
-                            <div class="relative">
-                                <i class="fas fa-calendar-day absolute left-4 top-4 text-blue-300"></i>
-                                <input type="number" id="days" placeholder="7 days" 
-                                       class="w-full pl-12 pr-4 py-4 bg-blue-800/50 border-2 border-blue-600/30 rounded-2xl text-black placeholder-blue-300 focus:border-orange-400 transition-all duration-300">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="block text-blue-200 font-semibold mb-3">Travel Preferences</label>
-                        <div class="relative">
-                            <i class="fas fa-heart absolute left-4 top-4 text-blue-300"></i>
-                            <textarea id="preferences" placeholder="Adventure, Luxury, Food, Culture..." 
-                                      class="w-full pl-12 pr-4 py-4 bg-blue-800/50 border-2 border-blue-600/30 rounded-2xl text-black placeholder-blue-300 focus:border-red-400 transition-all duration-300 resize-none"
-                                      rows="3"></textarea>
-                        </div>
-                    </div>
-
-                    <button type="submit" id="submit-btn" class="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-5 px-8 rounded-2xl transform transition-all duration-300 hover:scale-105">
-                        <i class="fas fa-wand-magic-sparkles mr-3"></i>
-                        Create Itinerary
-                        <i class="fas fa-arrow-right ml-3"></i>
-                    </button>
-                </form>
-            </div>
-
-            <!-- Preview Map -->
-            <div class="glass rounded-3xl p-8 shadow-2xl">
-                <h2 class="text-3xl font-bold text-white mb-6">Destination Preview</h2>
-                <div id="preview-map" class="h-96 rounded-2xl overflow-hidden border-2 border-blue-600/30 bg-blue-900/50 flex items-center justify-center">
-                    <i class="fas fa-globe-americas text-4xl text-blue-300"></i>
-                </div>
-            </div>
+        <label>Destination city<input id="city" name="city" autocomplete="address-level2" placeholder="Paris, Tokyo, Jaipur" required minlength="2" maxlength="80"></label>
+        <div class="form-row">
+          <label>Total budget (₹)<input id="budget" name="budget" type="number" min="500" step="1" placeholder="50000" required></label>
+          <label>Days<input id="days" name="days" type="number" min="1" max="21" step="1" placeholder="5" required></label>
         </div>
+        <label>Travel preferences<textarea id="preferences" name="preferences" rows="4" maxlength="300" placeholder="Food, culture, boutique hotels, scenic walks..."></textarea></label>
+        <button id="submit-btn" class="primary-button" type="submit"><span>Create itinerary</span><span>→</span></button>
+      </form>
 
-        <!-- Loading Animation -->
-        <div id="loading" class="hidden text-center mb-16">
-            <div class="orbit-spinner mb-6">
-                <div class="orbit"></div>
-                <div class="orbit"></div>
-                <div class="orbit"></div>
-            </div>
-            <p class="text-blue-200 text-xl font-semibold">Creating your itinerary...</p>
+      <aside class="glass-panel map-card">
+        <div class="section-heading">
+          <span class="icon-pill">⌖</span>
+          <div><h2>Destination preview</h2><p id="map-status">Mapbox will focus here after generation.</p></div>
         </div>
+        <div id="preview-map" class="map-shell"><p>Map loading...</p></div>
+      </aside>
+    </section>
 
-        <!-- Output Section -->
-        <div id="output" class="hidden space-y-8"></div>
+    <section id="loading" class="loading-panel hidden" aria-live="polite">
+      <div class="loader"><span></span><span></span><span></span></div>
+      <div><h2>Charting your route</h2><p>Gemini is balancing activities, hotels, and budget constraints.</p></div>
+    </section>
 
-        <!-- Error Message -->
-        <div id="error" class="hidden glass rounded-3xl p-8 text-center mb-8 border-2 border-red-500/30">
-            <i class="fas fa-exclamation-triangle text-red-300 text-4xl mb-4"></i>
-            <p id="error-message" class="text-red-200 font-semibold text-lg"></p>
-        </div>
+    <section id="error" class="message-panel error hidden" role="alert"><strong>We could not create that trip.</strong><p id="error-message"></p></section>
+    <section id="output" class="results hidden" aria-live="polite"></section>
+    <section id="empty-state" class="glass-panel empty-state"><h2>Your itinerary will appear here</h2><p>Start with a city, budget, and duration to generate a premium travel plan.</p></section>
+  </main>
 
-        <!-- Debug Info -->
-        <div id="debug" class="hidden glass rounded-3xl p-8 text-center mb-8 border-2 border-yellow-500/30">
-            <p class="text-yellow-200 text-sm" id="debug-info"></p>
-        </div>
-    </div>
-
-    <script src="https://api.mapbox.com/mapbox-gl-js/v2.9.2/mapbox-gl.js"></script>
-    <script src="app.js"></script>
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.js"></script>
+  <script src="app.js" defer></script>
 </body>
 </html>
